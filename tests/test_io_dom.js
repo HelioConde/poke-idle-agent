@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const {toNumber, extractFromLines, scanDocument} = require("../chrome_extension/content_io.js");
+const {toNumber, extractFromLines, scanDocument, diagnose} = require("../chrome_extension/content_io.js");
 
 assert.equal(toNumber("1.234"), 1234);
 assert.equal(toNumber("1.234,5"), 1234.5);
@@ -28,3 +28,16 @@ assert.deepEqual(scanDocument(nested), {
 });
 assert.deepEqual(scanDocument({querySelectorAll(){return [];}}), {});
 console.log("IO DOM: parser numerico e exclusao de credenciais OK");
+
+assert.deepEqual(extractFromLines(["— Nv 40"]), {level:40});
+const blankDoc={querySelectorAll(selector){
+  if(selector==="canvas")return [{},{}];
+  if(selector==="iframe")return [{}];
+  return [];
+}};
+assert.deepEqual(diagnose(blankDoc,"/app"),{
+ source:"dom",stats:{},available:false,
+ diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0}
+});
+assert.equal(diagnose(blankDoc,"/").diagnostic.status,"landing");
+assert.equal(diagnose(blankDoc,"/news").diagnostic.status,"other_route");

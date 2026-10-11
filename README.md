@@ -196,3 +196,22 @@ O script testar_projetos.ps1 permite clonar e rodar testes offline dos originais
 Verificar a economia e as permissões dos dois jogos, coletar dados reais com ações permitidas e depois implementar adaptadores isolados, começando pelo IO onde autorizado. Incluir modo dry-run, logs e botão de parada. Antes de afirmar rentabilidade, medir custos e saques efetivamente recebidos.
 
 Licença do código original: MIT. Nenhum resultado financeiro é garantido.
+
+## Diagnóstico de leitura IO (v0.3)
+
+O site https://pokeidle.io/ é a página de apresentação. Para abrir o jogo,
+use https://pokeidle.io/app, faça login e selecione uma hunt manualmente.
+Nosso adaptador apenas lê indicadores do DOM da aba /app e não confunde
+propagandas da página inicial com XP/Coins/Gems da sua conta.
+
+Atualize com git pull origin main, recarregue a extensão em chrome://extensions,
+recarregue a aba /app com F5 e reinicie .\\OBSERVAR-IO-CHROME.bat.
+Se as métricas forem vazias, a coluna **Diagnóstico** diferenciará:
+
+- Página inicial — navegue até /app.
+- Leitor não respondeu — recarregue extensão e jogo, confira se a página terminou de carregar.
+- DOM acessado, mas sem indicadores — exibe apenas as contagens de canvas/iframe/elementos; não copia HTML ou informações privadas.
+- Métricas reconhecidas — números extraídos que ainda precisam ser conferidos contra o HUD real.
+
+Mesmo quando detecta Canvas, o coletor ainda não lê pixels de abas inativas
+nem opera a interface do jogo. Não publique capturas com dados privados.

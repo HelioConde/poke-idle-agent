@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const {classifyGame, safeTab} = require("../chrome_extension/background.js");
+const {classifyGame, safeTab, routeOfIo} = require("../chrome_extension/background.js");
 
 assert.equal(classifyGame("https://pokeidle.io/play?auth=hidden"), "io");
 assert.equal(classifyGame("https://www.pokeidle.io/"), "io");
@@ -11,3 +11,9 @@ assert.equal(safeTab({url:"https://pokeidle.io/play",id:2,windowId:4,title:"Pok�
 assert.equal(safeTab({url:"https://pokeidle.io/play",id:2,windowId:4,title:"Pokéidle",active:false}).title,"Pokéidle");
 assert.equal(safeTab({url:"https://google.com",id:3,windowId:4}), null);
 console.log("Regras da extensao aprovadas.");
+
+assert.equal(routeOfIo("https://pokeidle.io/app"),"app");
+assert.equal(routeOfIo("https://pokeidle.io/app#map"),"app");
+assert.equal(routeOfIo("https://pokeidle.io/"),"landing");
+assert.equal(routeOfIo("https://pokeidle.io/other"),"other");
+assert.equal(safeTab({url:"https://pokeidle.io/app",id:7,windowId:3,title:"Pokeidle",active:false}).route,"app");

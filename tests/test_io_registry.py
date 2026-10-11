@@ -68,3 +68,52 @@ class RegistryTelemetryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DiagnosticTests(unittest.TestCase):
+    def test_reports_failed_reader(self):
+        row = payload()
+        row["tabs"][0].pop("telemetry")
+        row["tabs"][0]["observation"] = {
+            "status": "reader_unavailable", "canvas": 0,
+            "iframes": 0, "candidates": 0}
+        registry = Registry("test")
+        registry.ingest(row)
+        tab = registry.snapshot()["tabs"][0]
+        self.assertEqual(tab["observation"]["status"], "reader_unavailable")
+        self.assertIsNone(tab["xp_per_hour"])
+
+    def test_diagnostics_reject_privacy_leaks(self):
+        row = payload()
+        row["tabs"][0]["observation"] = {
+            "status": "no_matches", "canvas": 2,
+            "iframes": 1, "candidates": 100}
+        registry = Registry("test")
+        registry.ingest(row)
+        self.assertEqual(registry.snapshot()["tabs"][0]["observation"]["canvas"], 2)
+        row["tabs"][0]["observation"]["url"] = "/app?token=secret"
+        with self.assertRaises(ValueError):
+            registry.ingest(row)
+
+    def test_world_rejects_observation(self):
+        row = payload(game="world")
+        row["tabs"][0].pop("telemetry")
+        row["tabs"][0]["observation"] = {
+            "status": "landing", "canvas": 0, "iframes": 0, "candidates": 0}
+        with self.assertRaises(ValueError):
+            Registry("test").ingest(row)
+
+    def test_rate_invalidated_when_reader_stops(self):
+        registry = Registry("test")
+        with patch("app.tab_registry.time.monotonic", return_value=100):
+            registry.ingest(payload(10))
+        with patch("app.tab_registry.time.monotonic", return_value=160):
+            registry.ingest(payload(20))
+        row = payload()
+        row["tabs"][0].pop("telemetry")
+        row["tabs"][0]["observation"] = {
+            "status": "reader_unavailable", "canvas": 0,
+            "iframes": 0, "candidates": 0}
+        with patch("app.tab_registry.time.monotonic", return_value=180):
+            registry.ingest(row)
+            self.assertIsNone(registry.snapshot()["tabs"][0]["xp_per_hour"])
