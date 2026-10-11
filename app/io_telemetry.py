@@ -42,19 +42,37 @@ def sanitize(value: object) -> dict | None:
 
 def dry_run_decision(stats: dict | None, xp_per_hour: float | None = None) -> dict:
     """Descreve o próximo passo possível sem executar clique/tecla/transação."""
+    def result(action: str, objective: str, reason: str, confidence: str,
+               risk: str, preconditions: list[str], expected: str) -> dict:
+        return {
+            "mode": "dry_run", "action": action, "objective": objective,
+            "reason": reason, "data_used": sorted(stats), "confidence": confidence,
+            "risk": risk, "preconditions": preconditions,
+            "expected_result": expected,
+            "verification_plan": "Comparar a próxima observação validada; não agir se ela divergir.",
+            "permission_required": False,
+        }
     stats = stats or {}
     if not stats:
-        return {"mode": "dry_run", "action": "observe",
-                "reason": "Sem estatísticas legíveis no DOM; talvez a cena seja Canvas."}
+        return result("observe", "Observar mais amostras",
+                      "Sem estatísticas legíveis no DOM; talvez a cena seja Canvas.",
+                      "baixa", "baixo", ["Leitura DOM ou diagnóstico disponível"],
+                      "Diagnóstico mais preciso, sem interação.")
     hp, maxhp = stats.get("hp_current"), stats.get("hp_max")
     if maxhp and hp is not None and hp / maxhp < 0.25:
-        return {"mode": "dry_run", "action": "review_health",
-                "reason": "HP abaixo de 25%; verificar cura/segurança manualmente."}
+        return result("review_health", "Revisar segurança",
+                      "HP abaixo de 25%; verificar cura/segurança manualmente.",
+                      "alta", "médio", ["HP atual e máximo validados"],
+                      "Usuário avalia cura; nenhum item é usado automaticamente.")
     if xp_per_hour is not None and xp_per_hour >= 0:
-        return {"mode": "dry_run", "action": "track_farm",
-                "reason": f"XP/h observado entre amostras: {xp_per_hour:.0f}. Compare hunts antes de mudar."}
-    return {"mode": "dry_run", "action": "collect_more",
-            "reason": "Telemetria parcial; aguardar novas amostras sem interagir com o jogo."}
+        return result("track_farm", "Medir eficiência de farm",
+                      f"XP/h observado entre amostras: {xp_per_hour:.0f}. Compare hunts antes de mudar.",
+                      "média", "baixo", ["Duas amostras válidas no mesmo nível"],
+                      "Mais dados comparáveis, sem mudança automática de hunt.")
+    return result("collect_more", "Completar telemetria",
+                  "Telemetria parcial; aguardar novas amostras sem interagir com o jogo.",
+                  "baixa", "baixo", ["Leitura parcial validada"],
+                  "Amostras suficientes para uma recomendação futura.")
 
 
 def measured_xp_per_hour(previous: dict | None, current: dict,

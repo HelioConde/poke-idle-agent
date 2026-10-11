@@ -35,3 +35,11 @@ class IoTelemetryTests(unittest.TestCase):
         rec = dry_run_decision({"hp_current": 5, "hp_max": 100})
         self.assertEqual(rec["mode"], "dry_run")
         self.assertNotIn(rec["action"], {"click", "buy", "withdraw", "sell"})
+
+    def test_decision_is_explainable_and_verifiable(self):
+        rec = dry_run_decision({"level": 2, "xp_current": 5}, 300)
+        for key in ("objective", "data_used", "confidence", "risk",
+                    "preconditions", "expected_result", "verification_plan",
+                    "permission_required"):
+            self.assertIn(key, rec)
+        self.assertEqual(rec["action"], "track_farm")
