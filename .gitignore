@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+captures/
+.local-io-profile/
+third_party/
+data/
+reports/
+*.sqlite3
+*.sqlite3-*
+meus_*.csv
+.idea/
+.vscode/
