@@ -2,7 +2,7 @@
 
 **Laboratório independente para Poke Idle World + Poke Idle IO.** Comparador de farm, painel local e protótipo de agente de jogos. Não depende do Brain-SSD.
 
-**Status: MVP demonstrativo.** Os exemplos são fictícios e o agente toma decisões apenas em uma simulação local. Não foram executados bots em contas reais nem confirmados saques.
+**Status: MVP experimental.** A extensão já tenta observar métricas numéricas reais no IO, mas os seletores ainda não foram validados em uma conta autenticada. As recomendações são dry-run; o agente ainda não controla o jogo. Nenhum saque real foi confirmado.
 
 ## Instalar no Windows
 
@@ -36,6 +36,44 @@ Crie a pasta data, que está no .gitignore. Nunca registre como withdrawn_usd ge
 - Poke Idle IO (https://pokeidle.io/): avaliação de dados e captura passiva. Confirmar os termos atuais (https://pokeidle.io/terms) antes de implementar um agente que interaja com o jogo.
 
 Não há credenciais nem APIs secretas no código.
+
+## Evolução v0.2 — observar o Poke Idle IO sem trocar de aba
+
+Inspirado no **Poke Idle Companion** (métricas reais de sessão) e no
+**GameAgent AI** (ciclo observar → decidir → agir → verificar).
+A implementação desta etapa é original; não incorporamos código do Idle Helper,
+que possui licença restritiva.
+
+A extensão agora tenta ler indicadores numéricos **já visíveis no HTML**
+do Poke Idle IO: nível, XP atual, XP alvo, HP, Coins e Gems. A aba pode estar
+inativa; não é necessário clicar nela. No serviço local os valores são
+validados antes de calcular o XP/h entre duas amostras do mesmo nível.
+O painel exibe uma sugestão de ação em **dry-run**, que nunca clica no jogo.
+
+**Primeiro uso após atualizar:**
+
+1. Pare o monitor no terminal com Ctrl+C.
+2. Rode git pull origin main.
+3. Abra chrome://extensions e clique em **Recarregar** na extensão Idle Game Agent.
+4. Dê F5 na aba aberta do Poke Idle IO, após salvar seu jogo.
+5. Rode .\OBSERVAR-IO-CHROME.bat no PowerShell.
+6. Abra http://127.0.0.1:8768 e aguarde a primeira leitura (até 30s).
+7. Observe as novas colunas Nível, XP/h, HP e Decisão simulada.
+
+**Se os dados não aparecerem:** isso NÃO prova defeito de login nem que a
+IA esteja jogando. O jogo pode desenhar seu HUD no Canvas, ou usar marcações
+de HTML que ainda não conhecemos. A primeira integração aceita somente
+rótulos numéricos conservadores, não lê HTML livre, chat, inputs, credenciais,
+WebSocket ou localStorage. Não inclui decisões com dinheiro real.
+
+Validação dos testes:
+
+    py -3 -m unittest discover -s tests -v
+    node tests/test_extension_rules.js
+    node tests/test_io_dom.js
+
+Detalhes de arquitetura, limitações e referências:
+[docs/ARQUITETURA_AGENT.md](docs/ARQUITETURA_AGENT.md).
 
 ## Monitorar TODAS as abas, inclusive inativas (novo modo recomendado)
 
