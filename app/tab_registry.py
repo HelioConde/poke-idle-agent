@@ -11,6 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize
+
 MAX_BODY = 16384
 MAX_TABS = 40
 EXPIRY_SECONDS = 120
@@ -24,21 +26,24 @@ PAGE = """<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 <title>Idle Game Agent · Abas</title>
 <style>
 :root{font-family:system-ui,sans-serif;background:#0c1426;color:#eef2ff}
-body{max-width:1000px;padding:25px;margin:auto}h1{font-size:clamp(25px,4vw,40px)}
+body{max-width:1320px;padding:25px;margin:auto}h1{font-size:clamp(25px,4vw,40px)}
 p{color:#aebad0;line-height:1.6}.card{border:1px solid #354461;background:#15213a;
 border-radius:14px;padding:20px;margin:12px 0}small{color:#92a5c2}
-table{border-collapse:collapse;width:100%}th,td{padding:12px;text-align:left;
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:12px;text-align:left;
 border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
 .tag{background:#344569;border-radius:7px;padding:3px 8px;display:inline-block}
 </style>
 <h1>Abas dos jogos</h1>
-<p>Localiza abas abertas do Chrome, mesmo em segundo plano. Somente metadados:
-sem imagens, ações no jogo ou acesso a credenciais.</p>
+<p>Localiza abas abertas em segundo plano. No IO, também tenta ler métricas
+numéricas do HUD. Não captura credenciais, screenshots ou executa ações.</p>
 <div class="card"><b id="summary">Aguardando extensão...</b>
 <p id="hint">Aguardando primeira sincronização da extensão.</p></div>
 <div class="card"><table><thead><tr><th>Perfil</th><th>Jogo</th>
-<th>Aba</th><th>Selecionada</th><th>Atualizada</th></tr></thead>
-<tbody id="rows"><tr><td colspan="5">Aguardando...</td></tr></tbody></table></div>
+<th>Aba</th><th>Ativa</th><th>Nível</th><th>XP/h</th><th>HP</th>
+<th>Decisão simulada</th><th>Atualizada</th></tr></thead>
+<tbody id="rows"><tr><td colspan="9">Aguardando...</td></tr></tbody></table>
+<p>XP/h só é calculado quando o DOM fornece duas amostras válidas no mesmo nível.
+O coletor não lê Canvas, inventário privado ou dados da sessão.</p></div>
 <script src="/app.js"></script>
 </html>"""
 
@@ -60,12 +65,19 @@ try{
      ' Este painel mostra somente metadados; não captura imagens do jogo.'
    : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
  if(!data.tabs.length){const tr=document.createElement('tr');
- const td=document.createElement('td');td.colSpan=5;td.textContent='Nenhuma aba sincronizada.';
+ const td=document.createElement('td');td.colSpan=9;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
  for(const row of data.tabs){
   const tr=document.createElement('tr');
+  const stats=row.telemetry?.stats||{};
+  const read=(value)=>typeof value==='number'?value.toLocaleString('pt-BR'):'—';
+  const hp=typeof stats.hp_current==='number'
+    ?read(stats.hp_current)+(typeof stats.hp_max==='number'?'/'+read(stats.hp_max):''):'—';
+  const advice=row.game==='world'?'Apenas identificação da aba':
+    (row.advice?.reason||'Aguardando HUD no DOM');
   for(const value of [row.profile_label,row.game==='io'?'Poke Idle IO':'Poke Idle World',
-  row.title,row.active?'Sim':'Não',row.age_seconds+'s atrás']){
+    row.title,row.active?'Sim':'Não',read(stats.level),read(row.xp_per_hour),
+    hp,advice,row.age_seconds+'s atrás']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);
  }
@@ -78,6 +90,7 @@ class Registry:
     def __init__(self, token: str):
         self.token = token
         self.records: dict[str, dict] = {}
+        self.samples: dict[tuple[str, int], dict] = {}
         self.lock = threading.RLock()
 
     def ingest(self, data: object) -> int:
@@ -109,13 +122,36 @@ class Registry:
             if key in seen:
                 raise ValueError("Aba duplicada")
             seen.add(key)
-            cleaned.append({"game": tab["game"], "tab_id": tab_id,
-                            "window_id": window_id, "title": title,
-                            "active": tab["active"]})
+            entry = {"game": tab["game"], "tab_id": tab_id,
+                     "window_id": window_id, "title": title,
+                     "active": tab["active"]}
+            if tab["game"] == "io" and "telemetry" in tab:
+                entry["telemetry"] = sanitize(tab["telemetry"])
+            elif "telemetry" in tab:
+                raise ValueError("World não aceita telemetria de conta")
+            cleaned.append(entry)
         with self.lock:
+            now = time.monotonic()
+            for tab in cleaned:
+                if tab["game"] != "io":
+                    continue
+                reading = tab.get("telemetry")
+                stats = (reading or {}).get("stats") or {}
+                key = (profile_id, tab["tab_id"])
+                last = self.samples.get(key)
+                rate = last.get("rate") if last else None
+                if stats:
+                    if last and now - last["seen"] >= 5:
+                        rate = measured_xp_per_hour(
+                            last["stats"], stats, now - last["seen"])
+                    if not last or now - last["seen"] >= 5:
+                        self.samples[key] = {
+                            "seen": now, "stats": stats, "rate": rate}
+                tab["xp_per_hour"] = rate
+                tab["advice"] = dry_run_decision(stats, rate)
             self.records[profile_id] = {
                 "profile_label": label.strip() or "Perfil sem nome",
-                "tabs": cleaned, "seen": time.monotonic(),
+                "tabs": cleaned, "seen": now,
             }
         return len(cleaned)
 
@@ -125,6 +161,9 @@ class Registry:
             for key in list(self.records):
                 if now - self.records[key]["seen"] > EXPIRY_SECONDS:
                     del self.records[key]
+            for key, reading in list(self.samples.items()):
+                if now - reading["seen"] > EXPIRY_SECONDS:
+                    del self.samples[key]
             tabs = []
             for profile_id, profile in self.records.items():
                 age = max(0, int(now - profile["seen"]))
