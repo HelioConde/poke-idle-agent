@@ -79,7 +79,7 @@
       if (node.childElementCount > 4) continue;
       const text = node.textContent;
       if (typeof text === "string" && text.length > 1 && text.length <= 130 &&
-          /^(?:\\s)*(?:nv\\.?|lvl\\.?|lv\\.?|n[ií]vel|level|xp|exp|experi[eê]ncia|hp|vida|health|coins?|ouro|gold|moedas?|gems?|gemas?)/i.test(text)) {
+          /^\s*(?:nv\.?|lvl\.?|lv\.?|n[ií]vel|level|xp|exp|experi[eê]ncia|hp|vida|health|coins?|ouro|gold|moedas?|gems?|gemas?)/i.test(text)) {
         lines.push(text);
       }
     }
