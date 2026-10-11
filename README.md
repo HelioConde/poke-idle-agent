@@ -37,16 +37,45 @@ Crie a pasta data, que está no .gitignore. Nunca registre como withdrawn_usd ge
 
 Não há credenciais nem APIs secretas no código.
 
-## Captura passiva opcional
+## Capturar Poke Idle IO sem bloqueio do login Google (Windows)
 
-Instale Playwright e Chromium:
+**Use seu Chrome/Edge normal para o login.** O Google pode bloquear autenticação
+em Chromium iniciado pelo Playwright com "este navegador ou app pode não ser seguro".
+Não altere o User-Agent e não tente desativar as proteções do Google.
+
+A nova captura padrão usa a janela ativa do Chrome/Edge normal (captura de imagem
+na tela do Windows), **sem automação de navegador**, sem inspecionar cookies e sem
+capturar telas de login ou outras abas. O sistema ignora janelas que não têm
+título do jogo. A barra de endereço é cortada da imagem por padrão.
+
+    py -3 -m pip install -r requirements-desktop.txt
+    py -3 -m app.browser_probe --game io --mode desktop --open-browser --seconds 60
+
+Também é possível abrir diretamente \`OBSERVAR-IO-CHROME.bat\`.
+
+Entre no Poke Idle IO manualmente no navegador normal, volte ao terminal e aperte
+Enter; então clique na aba do jogo em até quatro segundos. As capturas são
+salvas em \`captures/\` (ignorado pelo Git). Se o título da aba não identificar
+o jogo, o programa não grava imagens; informe o título exibido na aba.
+Para monitores com escala muito alta, use \`--top-crop 150\` ou 180 para garantir
+que a barra de endereço fique fora da imagem. Nunca envie capturas de contas
+ou informações privadas ao repositório público.
+
+Captura do World pelo navegador comum (apenas observação, sem comandos no jogo):
+
+    py -3 -m app.browser_probe --game world --mode desktop --open-browser --seconds 30
+
+### Playwright: somente páginas públicas, sem login Google
+
+Opcional para testes de layout sem autenticação:
 
     py -3 -m pip install -r requirements-browser.txt
     py -3 -m playwright install chromium
-    py -3 -m app.browser_probe --game world --seconds 30
-    py -3 -m app.browser_probe --game io --seconds 60
+    py -3 -m app.browser_probe --game io --mode playwright --seconds 30
 
-World: apenas landing pública, navegador isolado sem login. IO: navegador separado, login manual se desejado. Capturas e perfis ficam apenas no computador, excluídos do Git.
+**Importante:** essas capturas não fazem a IA jogar. O agente que executa
+ações continua disponível apenas no ambiente local simulado. Integração
+com jogos reais depende das respectivas permissões e de testes separados.
 
 ## Projetos usados como referência, não copiados
 
