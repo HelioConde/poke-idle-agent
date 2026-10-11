@@ -35,8 +35,7 @@ border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
 <p>Localiza abas abertas do Chrome, mesmo em segundo plano. Somente metadados:
 sem imagens, ações no jogo ou acesso a credenciais.</p>
 <div class="card"><b id="summary">Aguardando extensão...</b>
-<p id="hint">Instale a extensão da pasta chrome_extension e informe a chave
-exibida no terminal.</p></div>
+<p id="hint">Aguardando primeira sincronização da extensão.</p></div>
 <div class="card"><table><thead><tr><th>Perfil</th><th>Jogo</th>
 <th>Aba</th><th>Selecionada</th><th>Atualizada</th></tr></thead>
 <tbody id="rows"><tr><td colspan="5">Aguardando...</td></tr></tbody></table></div>
@@ -44,12 +43,22 @@ exibida no terminal.</p></div>
 </html>"""
 
 SCRIPT = """async function refresh(){
-const summary=document.getElementById('summary'), body=document.getElementById('rows');
+const summary=document.getElementById('summary');
+const hint=document.getElementById('hint');
+const body=document.getElementById('rows');
 try{
  const result=await fetch('/api/tabs',{cache:'no-store'});
  if(!result.ok)throw Error('HTTP '+result.status);
  const data=await result.json(); body.replaceChildren();
- summary.textContent=data.tabs.length+' aba(s) encontrada(s) em '+data.profiles+' perfil(is)';
+ const tabCount=data.tabs.length, profileCount=data.profiles;
+ const inactive=data.tabs.filter(t=>!t.active).length;
+ summary.textContent=tabCount+' '+(tabCount===1?'aba encontrada':'abas encontradas')+
+   ' em '+profileCount+' '+(profileCount===1?'perfil':'perfis');
+ hint.textContent=profileCount>0
+   ? 'Extensão conectada e sincronizando. '+inactive+
+     (inactive===1?' aba inativa detectada.':' abas inativas detectadas.')+
+     ' Este painel mostra somente metadados; não captura imagens do jogo.'
+   : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
  if(!data.tabs.length){const tr=document.createElement('tr');
  const td=document.createElement('td');td.colSpan=5;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
@@ -60,7 +69,8 @@ try{
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);
  }
-}catch(e){summary.textContent='Serviço indisponível: '+e.message;}
+}catch(e){summary.textContent='Serviço indisponível: '+e.message;
+ hint.textContent='Verifique se o monitor local está em execução.';}
 }refresh();setInterval(refresh,3000);"""
 
 
