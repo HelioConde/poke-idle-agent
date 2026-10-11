@@ -30,6 +30,14 @@ jobs:
         shell: cmd
         run: |
           OBSERVAR-IO-CHROME.bat --check
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Testar capturador de janela Win32 sem abrir conta
+        shell: cmd
+        run: |
+          python -m unittest discover -s tests -v
+          python -m app.browser_probe --help
       - name: Evitar regressao de blocos IF com parenteses
         shell: pwsh
         run: |
