@@ -26,10 +26,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Checar sintaxe do launcher do IO no CMD
+      - name: Checar sintaxe dos launchers no CMD
         shell: cmd
         run: |
           OBSERVAR-IO-CHROME.bat --check
+          INICIAR-MONITOR-ABAS.bat --check
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -38,6 +39,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -v
           python -m app.browser_probe --help
+          python -m app.tab_registry --help
           python -c "from app.win_capture import find_windows; print('Windows capturaveis:', find_windows('io'))"
       - name: Evitar regressao de blocos IF com parenteses
         shell: pwsh
@@ -46,3 +48,20 @@ jobs:
           if ($bat -match '(?im)^\s*if\s+errorlevel\s+\d+\s+\(') {
             throw 'Evite blocos IF com parenteses e mensagens ECHO contendo ).'
           }
+  extension-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Testar regras de dominios e abas em segundo plano
+        run: |
+          node --check chrome_extension/background.js
+          node --check chrome_extension/popup.js
+          node tests/test_extension_rules.js
+      - name: Validar manifesto Chrome MV3
+        run: |
+          node -e "const m=require('./chrome_extension/manifest.json'); if(m.manifest_version!==3||!m.background.service_worker)process.exit(1)"
