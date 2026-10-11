@@ -20,3 +20,20 @@ jobs:
           python -m app.agent --steps 15 > /dev/null
           python -m app.lab examples/sessoes_demo.csv --json > /dev/null
           python -m app.decision examples/hunts_demo.csv > /dev/null
+  windows-bat-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checar sintaxe do launcher do IO no CMD
+        shell: cmd
+        run: |
+          OBSERVAR-IO-CHROME.bat --check
+      - name: Evitar regressao de blocos IF com parenteses
+        shell: pwsh
+        run: |
+          $bat = Get-Content 'OBSERVAR-IO-CHROME.bat' -Raw
+          if ($bat -match '(?im)^\s*if\s+errorlevel\s+\d+\s+\(') {
+            throw 'Evite blocos IF com parenteses e mensagens ECHO contendo ).'
+          }
