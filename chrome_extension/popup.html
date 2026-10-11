@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:system-ui,sans-serif;min-width:315px;max-width:360px;background:#0e1830;color:#f0f5ff;padding:15px}
+h2{font-size:18px;margin:0 0 5px}p{color:#a8b8d2;font-size:12px;line-height:1.5}
+label{font-size:12px;display:block;margin:12px 0 5px;color:#cbd7f0}
+input{box-sizing:border-box;width:100%;border:1px solid #4b5e81;background:#1b2b4a;color:white;border-radius:7px;padding:9px;font:inherit;font-size:13px}
+button{border:0;border-radius:8px;background:#7867eb;color:white;font-weight:bold;cursor:pointer;padding:10px 12px;margin-top:12px;width:100%}
+#status{margin-top:12px;border:1px solid #3e5071;padding:9px;border-radius:8px;font-size:12px;overflow-wrap:anywhere}
+#tab-list{font-size:12px;list-style:none;margin:10px 0 0;padding:0}
+#tab-list li{padding:8px;border-bottom:1px solid #3b4c6b;overflow-wrap:anywhere}
+</style></head><body>
+<h2>Idle Game Agent</h2>
+<p>Localiza as abas dos jogos mesmo inativas, sem ler senhas ou conteúdo do jogo.</p>
+<label for="profile">Nome deste perfil Chrome</label>
+<input id="profile" maxlength="48" placeholder="Ex.: Perfil principal" autocomplete="off">
+<label for="token">Chave do monitor local</label>
+<input id="token" type="password" maxlength="128" placeholder="Copie do terminal local" autocomplete="off">
+<button id="save">Salvar e sincronizar</button>
+<div id="status" role="status">Carregando...</div>
+<ul id="tab-list"></ul>
+<p>Veja o painel em <b>http://127.0.0.1:8768</b>. Cada perfil Chrome precisa carregar a extensão separadamente.</p>
+<script src="popup.js"></script></body></html>

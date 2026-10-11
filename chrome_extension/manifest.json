@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Idle Game Agent - Monitor de Abas",
+  "version": "0.1.0",
+  "description": "Localiza abas dos jogos em segundo plano, sem ler credenciais nem controlar o jogo.",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://pokeidle.io/*",
+    "https://www.pokeidle.io/*",
+    "https://poke.idleworld.online/*",
+    "http://127.0.0.1:8768/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Idle Game Agent",
+    "default_popup": "popup.html"
+  }
+}
