@@ -5,7 +5,7 @@
 (function () {
   const MAX_NODES = 3500;
   const RULES = [
-    ["level", /^(?:n[ií]vel|level|lv\.?)\s*[:=#-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
+    ["level", /^(?:n[ií]vel|level|lv\.?|nv\.?|lvl\.?)\s*[:=#-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
     ["xp", /^(?:xp|exp|experi[eê]ncia)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)(?:\s*\/\s*(\d[\d.,\s]*[kmb]?))?\s*$/i],
     ["hp", /^(?:hp|vida|health)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)(?:\s*\/\s*(\d[\d.,\s]*[kmb]?))?\s*$/i],
     ["coins", /^(?:coins?|ouro|gold|moedas?)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
@@ -74,10 +74,14 @@
       if (lines.length >= MAX_NODES) break;
       if (SKIP.test(node.tagName || "")) continue;
       if (node.closest && node.closest("form,dialog,[contenteditable],input,textarea,script,style,[class*='chat'],[id*='chat']")) continue;
-      // Preferimos nós de texto simples; evitamos repetir o texto dos containers.
-      if (node.childElementCount > 0) continue;
+      // HUDs frequentemente usam label em SPAN e valor em STRONG irmão:
+      // o container pequeno junta "XP" e "100/300" sem enviar textos brutos.
+      if (node.childElementCount > 4) continue;
       const text = node.textContent;
-      if (typeof text === "string" && text.length > 1 && text.length <= 130) lines.push(text);
+      if (typeof text === "string" && text.length > 1 && text.length <= 130 &&
+          /^(?:\\s)*(?:nv\\.?|lvl\\.?|lv\\.?|n[ií]vel|level|xp|exp|experi[eê]ncia|hp|vida|health|coins?|ouro|gold|moedas?|gems?|gemas?)/i.test(text)) {
+        lines.push(text);
+      }
     }
     return extractFromLines(lines);
   }
