@@ -83,7 +83,7 @@ def sanitize_observation(value: object) -> dict:
     if not isinstance(value, dict) or set(value) != {
             "status", "canvas", "iframes", "candidates"}:
         raise ValueError("Diagnóstico inválido")
-    if value["status"] not in DIAGNOSTIC_STATUSES:
+    if not isinstance(value["status"], str) or value["status"] not in DIAGNOSTIC_STATUSES:
         raise ValueError("Status de diagnóstico inválido")
     for key in ("canvas", "iframes", "candidates"):
         maximum = 3500 if key == "candidates" else 99
