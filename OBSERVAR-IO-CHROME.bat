@@ -14,9 +14,11 @@ py -3 -m pip install -r requirements-desktop.txt
 if errorlevel 1 goto :install_failed
 
 :capture
-echo Use seu Chrome normal para entrar no jogo.
+echo Abra o jogo no Chrome NORMAL, de preferencia em JANELA SEPARADA.
+echo Pode usar outros programas enquanto captura, sem deixar Chrome focado.
+echo NAO minimize a janela do jogo; pode cobri-la com outra janela.
 echo Este programa nao controla o login nem le senhas.
-py -3 -m app.browser_probe --game io --mode desktop --open-browser --seconds 60 --interval 10
+py -3 -m app.browser_probe --game io --mode window --seconds 60 --interval 10
 set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" echo Captura encerrada com erro %EXIT_CODE%.
 pause
