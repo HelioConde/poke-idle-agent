@@ -37,33 +37,45 @@ Crie a pasta data, que está no .gitignore. Nunca registre como withdrawn_usd ge
 
 Não há credenciais nem APIs secretas no código.
 
-## Capturar Poke Idle IO sem bloqueio do login Google (Windows)
+## Captura do Poke Idle IO em segundo plano (Chrome normal)
 
-**Use seu Chrome/Edge normal para o login.** O Google pode bloquear autenticação
-em Chromium iniciado pelo Playwright com "este navegador ou app pode não ser seguro".
-Não altere o User-Agent e não tente desativar as proteções do Google.
+**Não precisa deixar o Chrome focado.** Abra https://pokeidle.io/ em
+uma **janela separada** do Chrome/Edge normal, faça login manualmente e deixe
+a aba do jogo selecionada nessa janela. Pode colocar qualquer outro programa
+na frente; o observador localiza a janela mesmo sem foco.
 
-A nova captura padrão usa a janela ativa do Chrome/Edge normal (captura de imagem
-na tela do Windows), **sem automação de navegador**, sem inspecionar cookies e sem
-capturar telas de login ou outras abas. O sistema ignora janelas que não têm
-título do jogo. A barra de endereço é cortada da imagem por padrão.
+**Não minimize a janela.** Em Windows o Chrome pode deixar de renderizar
+janelas minimizadas; algumas combinações de Chrome/GPU também podem gerar
+quadros vazios ou congelados quando a janela está completamente coberta.
+A captura em segundo plano usa a API PrintWindow (tentativa, sem garantia
+de compatibilidade com todas as versões de Chrome). Não lê cookies/senhas
+e não usa Playwright para autenticação.
+
+Abra o script no Windows:
+
+    OBSERVAR-IO-CHROME.bat
+
+Ou execute:
 
     py -3 -m pip install -r requirements-desktop.txt
-    py -3 -m app.browser_probe --game io --mode desktop --open-browser --seconds 60
+    py -3 -m app.browser_probe --game io --mode window --seconds 60 --interval 10
 
-Também é possível abrir diretamente \`OBSERVAR-IO-CHROME.bat\`.
+Quando solicitar, pressione Enter após concluir o login. **Depois pode usar
+outros programas livremente**, desde que não minimize a janela do jogo.
+Imagens ficam em captures/, excluídas do GitHub. O sistema corta a barra
+de endereço da imagem (use --top-crop 150 se sua barra for mais alta).
 
-Entre no Poke Idle IO manualmente no navegador normal, volte ao terminal e aperte
-Enter; então clique na aba do jogo em até quatro segundos. As capturas são
-salvas em \`captures/\` (ignorado pelo Git). Se o título da aba não identificar
-o jogo, o programa não grava imagens; informe o título exibido na aba.
-Para monitores com escala muito alta, use \`--top-crop 150\` ou 180 para garantir
-que a barra de endereço fique fora da imagem. Nunca envie capturas de contas
-ou informações privadas ao repositório público.
+Se o programa não localizar o jogo, confirme que a **aba selecionada dessa
+janela separada** é o Poke Idle IO. Se capturas ficarem pretas ou congeladas,
+o próximo método recomendado é Windows Graphics Capture (por exemplo,
+OBS Studio com fonte Captura de Janela). A alternativa legada --mode desktop
+só funciona quando a janela está em primeiro plano.
 
-Captura do World pelo navegador comum (apenas observação, sem comandos no jogo):
+World, somente observação permitida:
 
-    py -3 -m app.browser_probe --game world --mode desktop --open-browser --seconds 30
+    py -3 -m app.browser_probe --game world --mode window --seconds 30
+
+Não há automação de ações em contas nem comprovação de saques.
 
 ### Playwright: somente páginas públicas, sem login Google
 
