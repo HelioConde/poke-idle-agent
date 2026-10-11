@@ -5,7 +5,7 @@
 (function () {
   const MAX_NODES = 3500;
   const RULES = [
-    ["level", /^(?:n[ií]vel|level|lv\.?|nv\.?|lvl\.?)\s*[:=#-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
+    ["level", /^(?:[—–-]\s*)?(?:n[ií]vel|level|lv\.?|nv\.?|lvl\.?)\s*[:=#-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
     ["xp", /^(?:xp|exp|experi[eê]ncia)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)(?:\s*\/\s*(\d[\d.,\s]*[kmb]?))?\s*$/i],
     ["hp", /^(?:hp|vida|health)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)(?:\s*\/\s*(\d[\d.,\s]*[kmb]?))?\s*$/i],
     ["coins", /^(?:coins?|ouro|gold|moedas?)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
@@ -86,14 +86,29 @@
     return extractFromLines(lines);
   }
 
+
+  function diagnose(root, path) {
+    const onApp = path === "/app" || path.startsWith("/app/");
+    const stats = onApp ? scanDocument(root) : {};
+    const count = selector => {
+      try { return Math.min(99, root.querySelectorAll(selector).length); }
+      catch (_err) { return 0; }
+    };
+    const status = !onApp ? (path === "/" ? "landing" : "other_route")
+      : Object.keys(stats).length ? "metrics" : "no_matches";
+    return {source:"dom", stats, available:status==="metrics",
+      diagnostic:{status,canvas:count("canvas"),iframes:count("iframe"),
+        candidates:Math.min(3500,count("span,div,p,b,strong,small,label,li"))}};
+  }
+
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage && typeof document !== "undefined") {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (!message || message.type !== "IGA_READ_IO_DOM") return false;
       // Esta mensagem vem do service worker do próprio complemento.
-      const stats = scanDocument(document);
-      respond({source:"dom", stats, available: Object.keys(stats).length > 0});
+      const path = typeof location === "undefined" ? "/" : location.pathname;
+      respond(diagnose(document, path));
       return false;
     });
   }
-  if (typeof module !== "undefined") module.exports = {toNumber, extractFromLines, scanDocument};
+  if (typeof module !== "undefined") module.exports = {toNumber, extractFromLines, scanDocument, diagnose};
 })();
