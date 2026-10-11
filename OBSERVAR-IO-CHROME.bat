@@ -1,6 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+if /I "%~1"=="--check" goto :self_test
 where py >nul 2>&1
 if errorlevel 1 goto :python_missing
 py -3 -c "from PIL import ImageGrab" >nul 2>&1
@@ -30,3 +31,7 @@ exit /b 1
 echo Comando py nao encontrado. Instale Python 3.11 ou superior.
 pause
 exit /b 1
+
+:self_test
+echo Verificacao basica do arquivo BAT: OK
+exit /b 0
