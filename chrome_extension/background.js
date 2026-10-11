@@ -13,11 +13,22 @@ function classifyGame(address) {
   return null;
 }
 
+
+function routeOfIo(address) {
+  try {
+    const path = new URL(address).pathname;
+    if (path === "/app" || path.startsWith("/app/")) return "app";
+    if (path === "/") return "landing";
+  } catch (_error) {}
+  return "other";
+}
+
 function safeTab(tab) {
   const game = classifyGame(tab.url || tab.pendingUrl);
   if (!game || !Number.isInteger(tab.id) || !Number.isInteger(tab.windowId)) return null;
   return {
     game, tab_id: tab.id, window_id: tab.windowId,
+    ...(game==="io" ? {route:routeOfIo(tab.url || tab.pendingUrl)} : {}),
     title: (typeof tab.title === "string" ? tab.title : game === "io" ? "Poke Idle IO" : "Poke Idle World").slice(0, 120),
     active: tab.active === true
   };
@@ -35,16 +46,27 @@ async function readProfile() {
 async function observeTab(tab) {
   const item = safeTab(tab);
   if (!item || item.game !== "io") return item;
+  const empty = {canvas:0,iframes:0,candidates:0};
+  if (item.route !== "app") {
+    item.observation = {...empty,status:item.route==="landing"?"landing":"other_route"};
+    return item;
+  }
+  item.observation = {...empty,status:"reader_unavailable"};
   try {
     const reading = await chrome.tabs.sendMessage(tab.id, {type:"IGA_READ_IO_DOM"});
-    if (reading && reading.source === "dom" &&
-        reading.stats && typeof reading.stats === "object" &&
-        !Array.isArray(reading.stats)) {
-      item.telemetry = { source:"dom", stats:reading.stats };
+    if (reading && reading.source === "dom" && reading.stats &&
+        typeof reading.stats === "object" && !Array.isArray(reading.stats)) {
+      item.telemetry = {source:"dom",stats:reading.stats};
+      const d=reading.diagnostic||{};
+      const bounded = (n, max)=>Number.isInteger(n)?Math.max(0,Math.min(max,n)):0;
+      item.observation = {
+        status:reading.available?"metrics":"no_matches",
+        canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),
+        candidates:bounded(d.candidates,3500)
+      };
     }
   } catch (_ignored) {
-    // Aba aberta antes da instalação, aba suspensa ou cena Canvas:
-    // não fabricamos estatísticas e não tentamos ativar a aba.
+    // Script nao injetado, aba suspensa, nao ha leitura confiavel.
   }
   return item;
 }
@@ -110,4 +132,4 @@ function installHandlers() {
   syncTabs();
 }
 if (typeof chrome !== "undefined" && chrome.runtime?.id) installHandlers();
-if (typeof module !== "undefined") module.exports = { classifyGame, safeTab };
+if (typeof module !== "undefined") module.exports = { classifyGame, safeTab, routeOfIo };
