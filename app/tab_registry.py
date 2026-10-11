@@ -157,6 +157,9 @@ class Registry:
                 key = (profile_id, tab["tab_id"])
                 last = self.samples.get(key)
                 rate = last.get("rate") if last else None
+                if not stats:
+                    rate = None
+                    self.samples.pop(key, None)
                 if stats:
                     if last and now - last["seen"] >= 5:
                         rate = measured_xp_per_hour(
