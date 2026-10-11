@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize
+from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
 
 MAX_BODY = 16384
 MAX_TABS = 40
@@ -40,8 +40,8 @@ numéricas do HUD. Não captura credenciais, screenshots ou executa ações.</p>
 <p id="hint">Aguardando primeira sincronização da extensão.</p></div>
 <div class="card"><table><thead><tr><th>Perfil</th><th>Jogo</th>
 <th>Aba</th><th>Ativa</th><th>Nível</th><th>XP/h</th><th>HP</th>
-<th>Coins</th><th>Gems</th><th>Decisão simulada</th><th>Atualizada</th></tr></thead>
-<tbody id="rows"><tr><td colspan="11">Aguardando...</td></tr></tbody></table>
+<th>Coins</th><th>Gems</th><th>Diagnóstico</th><th>Decisão simulada</th><th>Atualizada</th></tr></thead>
+<tbody id="rows"><tr><td colspan="12">Aguardando...</td></tr></tbody></table>
 <p>XP/h só é calculado quando o DOM fornece duas amostras válidas no mesmo nível.
 O coletor não lê Canvas, inventário privado ou dados da sessão.</p></div>
 <script src="/app.js"></script>
@@ -65,7 +65,7 @@ try{
      ' Este painel mostra somente metadados; não captura imagens do jogo.'
    : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
  if(!data.tabs.length){const tr=document.createElement('tr');
- const td=document.createElement('td');td.colSpan=11;td.textContent='Nenhuma aba sincronizada.';
+ const td=document.createElement('td');td.colSpan=12;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
  for(const row of data.tabs){
   const tr=document.createElement('tr');
@@ -73,11 +73,25 @@ try{
   const read=(value)=>typeof value==='number'?value.toLocaleString('pt-BR'):'—';
   const hp=typeof stats.hp_current==='number'
     ?read(stats.hp_current)+(typeof stats.hp_max==='number'?'/'+read(stats.hp_max):''):'—';
+  const obs=row.observation||{};
+  const explanations={
+    landing:"Página inicial. Clique em Jogar Grátis para entrar em /app.",
+    other_route:"Fora de /app: confirme se abriu o jogo.",
+    reader_unavailable:"Leitor não respondeu: recarregue extensão e aba /app.",
+    no_matches:"DOM acessado, mas HUD ainda não reconhecido.",
+    metrics:"Leitura numérica disponível."
+  };
+  let diagnostic=row.game==='world'?'World: somente identificação de aba':
+    (explanations[obs.status]||"Aguardando dados");
+  if(row.game==='io'&&obs.status==='no_matches'){
+    diagnostic+=' Canvas '+(obs.canvas||0)+', iframes '+(obs.iframes||0)+
+      ', elementos '+(obs.candidates||0);
+  }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
   for(const value of [row.profile_label,row.game==='io'?'Poke Idle IO':'Poke Idle World',
     row.title,row.active?'Sim':'Não',read(stats.level),read(row.xp_per_hour),
-    hp,read(stats.coins),read(stats.gems),advice,row.age_seconds+'s atrás']){
+    hp,read(stats.coins),read(stats.gems),diagnostic,advice,row.age_seconds+'s atrás']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);
  }
@@ -127,7 +141,10 @@ class Registry:
                      "active": tab["active"]}
             if tab["game"] == "io" and "telemetry" in tab:
                 entry["telemetry"] = sanitize(tab["telemetry"])
-            elif "telemetry" in tab:
+            if tab["game"] == "io" and "observation" in tab:
+                entry["observation"] = sanitize_observation(tab["observation"])
+            if tab["game"] != "io" and (
+                    "telemetry" in tab or "observation" in tab):
                 raise ValueError("World não aceita telemetria de conta")
             cleaned.append(entry)
         with self.lock:
