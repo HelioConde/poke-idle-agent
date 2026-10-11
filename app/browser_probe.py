@@ -133,6 +133,85 @@ def capture_desktop(game: str, seconds: int, interval: int,
     return 0
 
 
+
+def capture_background_window(game: str, seconds: int, interval: int,
+                              out: Path, top_crop: int,
+                              open_browser: bool) -> int:
+    """Captura a janela do jogo mesmo quando OUTRO programa tem o foco."""
+    if sys.platform != "win32":
+        raise RuntimeError("Modo window requer Windows.")
+
+    from app.win_capture import capture_window, find_windows, looks_blank, select_window
+
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "Instale Pillow: py -3 -m pip install -r requirements-desktop.txt"
+        ) from exc
+
+    if open_browser:
+        webbrowser.open(URLS[game], new=1)
+
+    print("Abra o Poke Idle no Chrome normal, em uma JANELA SEPARADA.")
+    print("Faça login manualmente e deixe a aba do jogo selecionada nessa janela.")
+    print("Depois pode usar outro programa na frente: o Chrome NAO precisa ter foco.")
+    print("Nao minimize o Chrome. Windows pode deixar de renderizar janelas minimizadas.")
+    try:
+        input("Pressione ENTER quando a janela do jogo estiver carregada...")
+    except EOFError as exc:
+        raise RuntimeError("Inicie em um terminal interativo.") from exc
+
+    out.mkdir(parents=True, exist_ok=True)
+    end_time = time.monotonic() + seconds
+    saved, skipped, consecutive_same = 0, 0, 0
+    last_sample: bytes | None = None
+    while True:
+        candidates = find_windows(game)
+        target = select_window(candidates)
+        if target is None:
+            skipped += 1
+            if any(item.minimized for item in candidates):
+                print("Janela encontrada, mas MINIMIZADA. Restaure sem dar foco.")
+            else:
+                print("Nao encontrei janela com a aba do jogo selecionada. "
+                      "Use uma janela Chrome separada para o jogo.")
+        else:
+            try:
+                screenshot = capture_window(target, top_crop)
+                if looks_blank(screenshot):
+                    skipped += 1
+                    print("Captura em branco ou uniforme. O Chrome/GPU pode "
+                          "nao aceitar PrintWindow; nenhuma imagem salva.")
+                else:
+                    sample = screenshot.resize((64, 36)).tobytes()
+                    consecutive_same = consecutive_same + 1 if sample == last_sample else 0
+                    last_sample = sample
+                    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                    path = out / f"{game}-background-{stamp}-{saved:03d}.png"
+                    screenshot.save(path)
+                    print(f"Captura em segundo plano: {path}")
+                    saved += 1
+                    if consecutive_same >= 2:
+                        print("Atencao: 3+ capturas identicas. Pode ser "
+                              "uma tela estatica ou o Chrome parou de atualizar.")
+            except (OSError, ValueError) as exc:
+                skipped += 1
+                print(f"Falha ao capturar janela em segundo plano: {exc}")
+
+        remaining = end_time - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(interval, remaining))
+
+    print(f"Concluido: {saved} imagens salvas, {skipped} tentativas ignoradas.")
+    if saved == 0:
+        print("Sem frames validos. A captura PrintWindow varia por Chrome/GPU.")
+        print("Uma alternativa futura e captura de janela via Windows Graphics Capture/OBS.")
+        return 2
+    return 0
+
+
 def capture_public_playwright(game: str, seconds: int, interval: int, out: Path) -> int:
     """Playwright exclusivamente para a landing pública; sem autenticação."""
     try:
@@ -168,8 +247,8 @@ def capture_public_playwright(game: str, seconds: int, interval: int, out: Path)
 def main() -> int:
     parser = argparse.ArgumentParser(description="Captura passiva de jogos")
     parser.add_argument("--game", choices=URLS, required=True)
-    parser.add_argument("--mode", choices=("desktop", "playwright"), default="desktop",
-                        help="desktop = navegador comum (padrão); playwright = página pública")
+    parser.add_argument("--mode", choices=("window", "desktop", "playwright"), default="window",
+                        help="window = captura de janela fora de foco (padrão); desktop = apenas foco; playwright = página pública")
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--interval", type=int, default=10)
     parser.add_argument("--out", type=Path, default=Path("captures"))
@@ -183,6 +262,9 @@ def main() -> int:
     if not 80 <= args.top_crop <= 300:
         parser.error("--top-crop: 80..300 (não pode capturar barra de URL)")
     try:
+        if args.mode == "window":
+            return capture_background_window(args.game, args.seconds, args.interval,
+                                             args.out, args.top_crop, args.open_browser)
         if args.mode == "desktop":
             return capture_desktop(args.game, args.seconds, args.interval, args.out,
                                    args.top_crop, args.open_browser)
