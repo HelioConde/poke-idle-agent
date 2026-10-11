@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
+from app.memory import MemoryStore
 
 MAX_BODY = 16384
 MAX_TABS = 40
@@ -101,8 +102,9 @@ try{
 
 
 class Registry:
-    def __init__(self, token: str):
+    def __init__(self, token: str, memory: MemoryStore | None = None):
         self.token = token
+        self.memory = memory
         self.records: dict[str, dict] = {}
         self.samples: dict[tuple[str, int], dict] = {}
         self.lock = threading.RLock()
@@ -179,6 +181,15 @@ class Registry:
                             "seen": now, "stats": stats, "rate": rate}
                 tab["xp_per_hour"] = rate
                 tab["advice"] = dry_run_decision(stats, rate)
+                if self.memory:
+                    self.memory.record_observation(
+                        profile_id=profile_id,
+                        game="io",
+                        session_id=f'{tab["window_id"]}:{tab["tab_id"]}',
+                        state={"source": "dom", "stats": stats,
+                               "observation": tab.get("observation")},
+                        decision=tab["advice"],
+                    )
             self.records[profile_id] = {
                 "profile_label": label.strip() or "Perfil sem nome",
                 "tabs": cleaned, "seen": now,
@@ -304,8 +315,9 @@ def main():
     if not 1024 <= args.port <= 65535:
         parser.error("Escolha porta entre 1024 e 65535")
     token = load_token()
+    memory = MemoryStore(ROOT / "data" / "agent.sqlite3")
     server = ThreadingHTTPServer(("127.0.0.1", args.port),
-                                 create_handler(Registry(token)))
+                                 create_handler(Registry(token, memory)))
     print("Idle Game Agent — monitor de abas do Chrome (somente leitura)")
     print(f"Painel: http://127.0.0.1:{args.port}")
     print(f"CHAVE DE EMPARELHAMENTO (uso local): {token}")

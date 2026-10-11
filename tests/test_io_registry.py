@@ -1,6 +1,7 @@
 """Testes da integracao IO sem abrir navegador ou usar conta real."""
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
 
 from app.tab_registry import Registry
 
@@ -79,6 +80,16 @@ class RegistryTelemetryTests(unittest.TestCase):
         item["tabs"][0]["route"] = "https://pokeidle.io/app?secret"
         with self.assertRaises(ValueError):
             reg.ingest(item)
+
+    def test_normalized_io_observation_is_persisted(self):
+        memory = Mock()
+        reg = Registry("test-token", memory)
+        reg.ingest(payload())
+        stored = memory.record_observation.call_args.kwargs
+        self.assertEqual(stored["game"], "io")
+        self.assertEqual(stored["session_id"], "20:10")
+        self.assertEqual(stored["state"]["stats"]["level"], 12)
+        self.assertEqual(stored["decision"]["mode"], "dry_run")
 
 
 if __name__ == "__main__":

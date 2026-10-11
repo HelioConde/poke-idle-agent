@@ -30,6 +30,15 @@
 7. Nenhum clique é executado no jogo. Nenhuma compra, venda, transação,
    saque ou automação de múltiplas contas.
 
+## Memória local
+
+O monitor registra em `data/agent.sqlite3` apenas observações já normalizadas
+(métricas numéricas permitidas, contagens de diagnóstico e decisão dry-run).
+As linhas são separadas por perfil e pela identidade estável `janela:aba`, e
+podem sobreviver ao reinício do processo. O banco não recebe URL, HTML,
+cookies, tokens, capturas ou qualquer comando para o jogo; `data/` continua
+ignorada pelo Git.
+
 ## Limitações importantes
 
 - O HTML da versão autenticada do IO não foi inspecionado; os padrões atuais
