@@ -37,6 +37,52 @@ Crie a pasta data, que está no .gitignore. Nunca registre como withdrawn_usd ge
 
 Não há credenciais nem APIs secretas no código.
 
+## Monitorar TODAS as abas, inclusive inativas (novo modo recomendado)
+
+Este modo corrige a limitação do Windows: o título da janela comum mostra apenas
+a aba selecionada. A extensão do Chrome acessa a lista de abas dos **dois jogos**,
+incluindo abas inativas, sem mover o foco e sem exigir uma janela separada.
+O programa usa **URL e título da aba**, não procura o título da janela do Windows.
+
+1. Atualize com git pull origin main.
+2. Execute OBSERVAR-IO-CHROME.bat (agora inicia o monitor de abas) ou
+   INICIAR-MONITOR-ABAS.bat.
+3. No terminal aparece a **CHAVE DE EMPARELHAMENTO**. Mantenha-a privada.
+4. No Chrome normal, abra chrome://extensions, ative "Modo do desenvolvedor",
+   selecione "Carregar sem compactação" e escolha a pasta chrome_extension
+   dentro deste repositório.
+5. Clique no ícone do Idle Game Agent, informe um nome de perfil e cole a chave.
+6. Clique "Salvar e sincronizar"; abra http://127.0.0.1:8768.
+7. Abra pokeidle.io normalmente e mude para outra aba: ele continua aparecendo
+   como INATIVO no painel. Para um segundo perfil Chrome, instale a mesma
+   extensão nesse perfil e repita o passo 5 com um nome diferente.
+
+**O que ele faz:** lista abas por jogo, título, perfil, janela e se estão
+selecionadas. Detecta múltiplas abas e perfis, sem login automatizado, sem
+acesso a cookies, senhas ou conteúdo de páginas. Todos os dados enviados pela
+extensão são somente metadados dos domínios dos jogos, para 127.0.0.1.
+A chave fica no computador e no armazenamento local da extensão. O monitor
+remove perfis desatualizados após dois minutos sem sincronização.
+
+**O que ele NÃO faz:** capturar vídeo ou screenshots de abas inativas, controlar
+personagens, iniciar sessão ou gerenciar várias contas automaticamente.
+A API de captura visível do Chrome só captura a aba selecionada; para
+observação visual de abas ocultas será preciso estudar outra abordagem,
+com permissões adequadas e os limites de renderização em segundo plano.
+
+Várias abas no mesmo perfil geralmente compartilham a mesma sessão de login.
+Para contas separadas, use perfis distintos **somente se as regras dos jogos
+permitirem múltiplas contas**. A permissão para multi-contas ainda não foi
+confirmada e não implementamos sua automação.
+
+Os antigos comandos com imagens foram preservados, mas têm limitações:
+
+    OBSERVAR-IO-CHROME.bat --capturas
+
+Para executar o antigo capturador de janelas de forma direta:
+
+    py -3 -m app.browser_probe --game io --mode window --seconds 60
+
 ## Captura do Poke Idle IO em segundo plano (Chrome normal)
 
 **Não precisa deixar o Chrome focado.** Abra https://pokeidle.io/ em
