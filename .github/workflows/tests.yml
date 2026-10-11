@@ -1,0 +1,22 @@
+name: Testes offline
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Testar laboratório
+        run: |
+          python -m unittest discover -s tests -v
+          python -m app.agent --steps 15 > /dev/null
+          python -m app.lab examples/sessoes_demo.csv --json > /dev/null
+          python -m app.decision examples/hunts_demo.csv > /dev/null
