@@ -41,6 +41,14 @@ class BackgroundWindowTests(unittest.TestCase):
                 image.putpixel((x, y), (200, 60, 30))
         self.assertFalse(looks_blank(image))
 
+    def test_uniform_non_black_image_is_blank(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow opcional")
+        from app.win_capture import looks_blank
+        self.assertTrue(looks_blank(Image.new("RGB", (150, 200), (20, 40, 60))))
+
 
 if __name__ == "__main__":
     unittest.main()

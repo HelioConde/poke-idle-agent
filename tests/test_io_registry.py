@@ -13,6 +13,7 @@ def payload(xp=100, game="io"):
         "tabs": [{
             "game": game, "tab_id": 10, "window_id": 20,
             "title": "Pokeidle", "active": False,
+            **({"route": "app"} if game == "io" else {}),
             "telemetry": {
                 "source": "dom",
                 "stats": {"level": 12, "xp_current": xp,
@@ -64,6 +65,20 @@ class RegistryTelemetryTests(unittest.TestCase):
         self.assertEqual(row["telemetry"]["available"], False)
         self.assertEqual(row["advice"]["action"], "observe")
         self.assertIsNone(row["xp_per_hour"])
+
+    def test_landing_cannot_submit_hud_telemetry(self):
+        reg = Registry("test-token")
+        item = payload()
+        item["tabs"][0]["route"] = "landing"
+        with self.assertRaises(ValueError):
+            reg.ingest(item)
+
+    def test_invalid_io_route_rejected(self):
+        reg = Registry("test-token")
+        item = payload()
+        item["tabs"][0]["route"] = "https://pokeidle.io/app?secret"
+        with self.assertRaises(ValueError):
+            reg.ingest(item)
 
 
 if __name__ == "__main__":

@@ -30,10 +30,15 @@ def suitable_window(target: TargetWindow) -> bool:
 
 
 def looks_blank(image: "Image.Image") -> bool:
-    """Detecta imagem quase uniforme (PrintWindow devolveu frame vazio)."""
-    from PIL import ImageStat
-    colors = ImageStat.Stat(image.convert("RGB").resize((32, 32))).stddev
-    return max(colors) < 3.0
+    """Detecta imagem quase uniforme (PrintWindow devolveu frame vazio).
+
+    A checagem precisa usar a imagem original: reduzir um padrão regular de
+    pixels pode transformá-lo artificialmente em um cinza uniforme e fazer
+    uma captura válida parecer vazia.
+    """
+    rgb = image.convert("RGB")
+    extrema = rgb.getextrema()
+    return all((high - low) < 3 for low, high in extrema)
 
 
 def find_windows(game: str) -> list[TargetWindow]:

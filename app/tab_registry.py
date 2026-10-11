@@ -132,6 +132,9 @@ class Registry:
                 raise ValueError("Título inválido")
             if type(tab.get("active")) is not bool:
                 raise ValueError("Indicador de seleção inválido")
+            route = tab.get("route") if tab.get("game") == "io" else None
+            if route is not None and route not in ("landing", "app", "other"):
+                raise ValueError("Rota IO inválida")
             key = (tab_id, window_id)
             if key in seen:
                 raise ValueError("Aba duplicada")
@@ -139,9 +142,16 @@ class Registry:
             entry = {"game": tab["game"], "tab_id": tab_id,
                      "window_id": window_id, "title": title,
                      "active": tab["active"]}
+            if route is not None:
+                entry["route"] = route
             if tab["game"] == "io" and "telemetry" in tab:
+                if route != "app":
+                    raise ValueError("Telemetria IO exige rota /app")
                 entry["telemetry"] = sanitize(tab["telemetry"])
             if tab["game"] == "io" and "observation" in tab:
+                if route is not None and route != "app" and tab["observation"].get("status") not in (
+                        "landing", "other_route"):
+                    raise ValueError("Diagnóstico não corresponde à rota IO")
                 entry["observation"] = sanitize_observation(tab["observation"])
             if tab["game"] != "io" and (
                     "telemetry" in tab or "observation" in tab):
