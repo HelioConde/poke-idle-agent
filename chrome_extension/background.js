@@ -31,11 +31,30 @@ async function readProfile() {
   }
   return state;
 }
+// Captura por DOM somente em abas IO. O jogo World continua metadados-only.
+async function observeTab(tab) {
+  const item = safeTab(tab);
+  if (!item || item.game !== "io") return item;
+  try {
+    const reading = await chrome.tabs.sendMessage(tab.id, {type:"IGA_READ_IO_DOM"});
+    if (reading && reading.source === "dom" &&
+        reading.stats && typeof reading.stats === "object" &&
+        !Array.isArray(reading.stats)) {
+      item.telemetry = { source:"dom", stats:reading.stats };
+    }
+  } catch (_ignored) {
+    // Aba aberta antes da instalação, aba suspensa ou cena Canvas:
+    // não fabricamos estatísticas e não tentamos ativar a aba.
+  }
+  return item;
+}
+
 let inFlight = null;
 async function performScan() {
   const state = await readProfile();
   // Abas de outros sites nao expoem URL/titulo devido as permissoes restritas.
-  const tabs = (await chrome.tabs.query({})).map(safeTab).filter(Boolean).slice(0, 40);
+  const found = await chrome.tabs.query({});
+  const tabs = (await Promise.all(found.slice(0, 80).map(observeTab))).filter(Boolean).slice(0, 40);
   const result = { tabs, count: tabs.length, paired: Boolean(state.pairing_token) };
   if (!state.pairing_token) {
     await chrome.storage.local.set({
