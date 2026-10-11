@@ -71,3 +71,22 @@ def measured_xp_per_hour(previous: dict | None, current: dict,
     if delta < 0:
         return None
     return round(delta / elapsed_seconds * 3600, 2)
+
+
+DIAGNOSTIC_STATUSES = frozenset({
+    "landing", "other_route", "reader_unavailable", "no_matches", "metrics"
+})
+
+
+def sanitize_observation(value: object) -> dict:
+    """Aceita somente status e contagens. Nada de URL, HTML ou identificadores."""
+    if not isinstance(value, dict) or set(value) != {
+            "status", "canvas", "iframes", "candidates"}:
+        raise ValueError("Diagnóstico inválido")
+    if value["status"] not in DIAGNOSTIC_STATUSES:
+        raise ValueError("Status de diagnóstico inválido")
+    for key in ("canvas", "iframes", "candidates"):
+        maximum = 3500 if key == "candidates" else 99
+        if type(value[key]) is not int or not 0 <= value[key] <= maximum:
+            raise ValueError("Contagem de diagnóstico inválida")
+    return dict(value)
