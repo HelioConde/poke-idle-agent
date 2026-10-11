@@ -61,7 +61,9 @@ jobs:
         run: |
           node --check chrome_extension/background.js
           node --check chrome_extension/popup.js
+          node --check chrome_extension/content_io.js
           node tests/test_extension_rules.js
+          node tests/test_io_dom.js
       - name: Validar manifesto Chrome MV3
         run: |
-          node -e "const m=require('./chrome_extension/manifest.json'); if(m.manifest_version!==3||!m.background.service_worker)process.exit(1)"
+          node -e "const m=require('./chrome_extension/manifest.json'); if(m.manifest_version!==3||!m.background.service_worker||!m.content_scripts?.some(c=>c.js.includes('content_io.js')))process.exit(1)"
