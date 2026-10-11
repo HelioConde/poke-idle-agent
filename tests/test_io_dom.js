@@ -15,5 +15,16 @@ const fakeDoc = {querySelectorAll(){return [
  {tagName:"DIV",childElementCount:0,textContent:"Password: abc",closest(){return null;}}
 ];}};
 assert.deepEqual(scanDocument(fakeDoc), {xp_current:20,xp_max:100});
+assert.deepEqual(extractFromLines(["Nv 44", "Coins1000", "Gems 10"]), {
+  level:44, coins:1000, gems:10
+});
+const nested = {querySelectorAll(){return [
+  {tagName:"DIV",childElementCount:2,textContent:"XP100 / 300",closest(){return null;}},
+  {tagName:"DIV",childElementCount:2,textContent:"HP50 / 100",closest(){return null;}},
+  {tagName:"DIV",childElementCount:2,textContent:"CPF 123.456",closest(){return null;}}
+];}};
+assert.deepEqual(scanDocument(nested), {
+  xp_current:100, xp_max:300, hp_current:50, hp_max:100
+});
 assert.deepEqual(scanDocument({querySelectorAll(){return [];}}), {});
 console.log("IO DOM: parser numerico e exclusao de credenciais OK");
