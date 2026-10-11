@@ -1,4 +1,5 @@
 @echo off
+if /I "%~1"=="--check" goto :self_test
 cd /d "%~dp0"
 where py >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
@@ -9,3 +10,8 @@ if %ERRORLEVEL% EQU 0 (
   python -m app.agent --steps 15
 )
 pause
+exit /b %ERRORLEVEL%
+
+:self_test
+echo Teste do agente: sintaxe BAT OK
+exit /b 0

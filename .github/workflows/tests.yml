@@ -31,6 +31,8 @@ jobs:
         run: |
           OBSERVAR-IO-CHROME.bat --check
           INICIAR-MONITOR-ABAS.bat --check
+          INICIAR-PAINEL.bat --check
+          TESTAR-AGENTE.bat --check
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
