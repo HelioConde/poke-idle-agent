@@ -74,7 +74,7 @@ class DryRunExecutor:
         self.risk_manager = risk_manager or RiskManager()
         self.log: list[dict] = []
 
-    def execute(self, request: ActionRequest) -> ExecutionResult:
+    def execute(self, request: ActionRequest, now: float | None = None) -> ExecutionResult:
         if request.game not in GAME_ACTIONS:
             raise ValueError("Adaptador de jogo inválido")
         if request.mode != "dry_run":
@@ -88,7 +88,7 @@ class DryRunExecutor:
                                      "Ação não autorizada para este adaptador",
                                      request.action, request.mode)
         else:
-            allowed, reason = self.risk_manager.allow_attempt()
+            allowed, reason = self.risk_manager.allow_attempt(now)
             result = ExecutionResult(allowed, False,
                                      "Plano simulado aceito" if allowed else reason,
                                      request.action, request.mode)

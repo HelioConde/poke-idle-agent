@@ -4,6 +4,8 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 
+from app.control import ActionRequest, DryRunExecutor
+
 @dataclass
 class State:
     turn: int = 0
@@ -45,13 +47,25 @@ def run(steps: int = 15) -> dict:
     if not 1 <= steps <= 1000:
         raise ValueError("steps deve estar entre 1 e 1000")
     game = IdleSandbox()
+    executor = DryRunExecutor()
     history = []
     for _ in range(steps):
-        action = choose_action(game.observe())
+        before = game.observe()
+        action = choose_action(before)
+        # Cada turno do jogo fictício representa um minuto; assim o teste de
+        # simulação não burla nem confunde o limitador baseado em relógio real.
+        plan = executor.execute(ActionRequest("simulated", action, {}),
+                                now=float(before.turn * 60))
+        if not plan.accepted:
+            raise RuntimeError("Plano simulado bloqueado: " + plan.reason)
         after = game.act(action)
+        verified = after.turn == before.turn + 1
         history.append({"turn": after.turn, "action": action,
-                        "energy": after.energy, "inventory": after.inventory, "coins": after.coins})
-    return {"environment": "local_sandbox_only", "summary": asdict(game.observe()), "events": history}
+                        "energy": after.energy, "inventory": after.inventory,
+                        "coins": after.coins, "plan_mode": plan.mode,
+                        "verified": verified})
+    return {"environment": "local_sandbox_only", "summary": asdict(game.observe()),
+            "events": history, "agent_loop": "observe_plan_act_verify"}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ambiente de jogo simulado")

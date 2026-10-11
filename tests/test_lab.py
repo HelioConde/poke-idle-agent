@@ -48,8 +48,11 @@ class SandboxTests(unittest.TestCase):
     def test_cycle_generates_coins(self):
         result = run(20)
         self.assertEqual(result["environment"], "local_sandbox_only")
+        self.assertEqual(result["agent_loop"], "observe_plan_act_verify")
         self.assertGreater(result["summary"]["coins"], 0)
         self.assertEqual(len(result["events"]), 20)
+        self.assertTrue(all(event["verified"] for event in result["events"]))
+        self.assertTrue(all(event["plan_mode"] == "dry_run" for event in result["events"]))
 
     def test_invalid_actions(self):
         with self.assertRaises(ValueError):
