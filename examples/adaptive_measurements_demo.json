@@ -1,0 +1,28 @@
+[
+  {
+    "game": "world",
+    "profile_id": "demo-world-veteran",
+    "account_id": "conta-experiente",
+    "pokemon_id": "principal",
+    "hunt_id": "hunt-a",
+    "minutes": 45,
+    "xp_gained": 12000,
+    "resources_gained": 3000,
+    "resources_spent": 400,
+    "defeats": 0,
+    "source": "demo"
+  },
+  {
+    "game": "world",
+    "profile_id": "demo-world-veteran",
+    "account_id": "conta-experiente",
+    "pokemon_id": "principal",
+    "hunt_id": "hunt-b",
+    "minutes": 45,
+    "xp_gained": 13000,
+    "resources_gained": 3100,
+    "resources_spent": 600,
+    "defeats": 1,
+    "source": "demo"
+  }
+]

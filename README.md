@@ -4,6 +4,40 @@
 
 **Status: MVP experimental.** A extensão já tenta observar métricas numéricas reais no IO, mas os seletores ainda não foram validados em uma conta autenticada. As recomendações são dry-run; o agente ainda não controla o jogo. Nenhum saque real foi confirmado.
 
+## Arquitetura universal — contas novas e qualquer Pokémon
+
+**Este agente não é configurado para Charizard 110.** O objetivo é iniciar em
+uma conta nova e adaptar a estratégia conforme perfil, treinador, equipe,
+Pokémon ativo, hunts realmente desbloqueadas e dados observados.
+
+O motor genérico é **somente consultivo**: World usa medições manuais/offline;
+IO usa dados autorizados e gera decisões dry-run. Nenhum clique, login,
+comércio ou saque é executado pelo módulo.
+
+### Cadastro guiado de conta no Windows
+
+    py -3 -m app.account_setup
+
+O assistente pergunta o jogo, um apelido local de perfil e conta, nível
+do treinador se conhecido, Pokémon de qualquer espécie/nível, Pokémon
+ativo e hunts disponíveis. Não informe e-mail, senha ou token. Os registros
+ficam em data/accounts.json, arquivo excluído do Git.
+
+### Analisar contas cadastradas
+
+    py -3 -m app.adaptive_strategy --accounts data/accounts.json
+
+### Testar cenários fictícios
+
+    py -3 -m app.adaptive_strategy --accounts examples/adaptive_accounts_demo.json --measurements examples/adaptive_measurements_demo.json
+
+Os exemplos incluem uma conta nova, uma com Charizard 110 e uma conta IO.
+São **fictícios**, não comprovam receitas nem experiência no jogo real.
+Para comparar hunts reais, forneça JSON de medições por perfil, conta,
+jogo, Pokémon e hunt, conforme docs/ARQUITETURA_ADAPTATIVA.md.
+
+**Commits econômicos locais do Copilot não foram mesclados** nesta branch.
+Preserve-os antes de reconciliar as mudanças.
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
