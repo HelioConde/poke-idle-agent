@@ -166,10 +166,10 @@ class EngineSimulationTests(unittest.TestCase):
         self.assertEqual(outcome["status"],"uncertain")
         self.assertTrue(self.engine.emergency)
 
-    def test_missing_stock_fail_closed(self):
+    def test_missing_stock_is_blocked_before_execution(self):
         outcome=self.execute("publish_listing","list","absent",1,50)
-        self.assertEqual(outcome["status"],"uncertain")
-        self.assertTrue(self.engine.emergency)
+        self.assertEqual(outcome["status"],"blocked")
+        self.assertFalse(self.engine.emergency)
 
     def test_demo_is_explicitly_simulated(self):
         records=demo()
@@ -182,10 +182,10 @@ class LiveGateTests(unittest.TestCase):
         is_simulation=False
         verified_actions=frozenset({"start_farm"})
         def __init__(self):
-            self.state=ObservedIO("io","demo","demo",farming=False)
+            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=False)
         def observe(self): return self.state
         def perform(self,request):
-            self.state=ObservedIO("io","demo","demo",farming=True)
+            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=True)
 
     def test_no_action_without_specific_human_approval(self):
         adapter=self.ValidatedAdapter()
