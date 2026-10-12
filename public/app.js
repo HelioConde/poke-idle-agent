@@ -254,7 +254,9 @@ async function refreshUnifiedTabs() {
           ? item.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h'
           : 'XP/h: não medido';
         paragraph.textContent=xp+' · Nível: '+(stats.level ?? 'desconhecido')+
-          ' · '+(item.advice?.reason || 'Leitura IO pendente')+
+          ' · '+(item.observation?.xp_ambiguous
+            ? 'XP ambíguo: '+item.observation.xp_candidates+' barras distintas, sem XP/h'
+            : (item.advice?.reason || 'Leitura IO pendente'))+
           ' · Atualizada há '+item.age_seconds+'s';
       } else {
         paragraph.textContent='Poke Idle World: somente identificação da aba; telemetria privada desativada.';
