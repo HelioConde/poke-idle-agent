@@ -3,6 +3,8 @@ setlocal
 cd /d "%~dp0"
 if /I "%~1"=="--check" goto :self_test
 if /I "%~1"=="--test" goto :tests
+if /I "%~1"=="--setup" goto :setup
+if /I "%~1"=="--help" goto :help
 echo ===========================================
 echo         IDLE GAME AGENT - INICIAR TUDO
 echo ===========================================
@@ -27,6 +29,29 @@ goto :finish
 echo [ERRO] Instale Python 3.11+ e marque a opcao Add Python to PATH.
 set "EXIT_CODE=1"
 goto :finish
+
+:setup
+echo Cadastro local (apelidos, sem senha nem e-mail).
+where py >nul 2>&1
+if errorlevel 1 goto :python_setup
+py -3 -m app.account_setup
+set "EXIT_CODE=%ERRORLEVEL%"
+goto :finish
+
+:python_setup
+where python >nul 2>&1
+if errorlevel 1 goto :missing_python
+python -m app.account_setup
+set "EXIT_CODE=%ERRORLEVEL%"
+goto :finish
+
+:help
+echo Use INICIAR-TUDO.bat para abrir o painel e o monitor do Chrome.
+echo --setup : cadastrar contas locais, sem login
+echo --test  : executar todos os testes Python
+echo --check : verificar arquivos de entrada
+echo --help  : mostrar ajuda
+exit /b 0
 
 :tests
 where py >nul 2>&1
