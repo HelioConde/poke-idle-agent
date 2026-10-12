@@ -3,7 +3,7 @@ import unittest
 from dataclasses import FrozenInstanceError
 from time import time
 
-from app.io_action_engine import ActionRequest, Engine, ObservedIO
+from app.io_action_engine import ActionRequest, Engine, ObservedIO, Policy
 from app.io_local_live_controls import (
     LOCAL_IO_LIVE_CONTROLS, LocalControlEvidence, locally_verified_control
 )
@@ -57,7 +57,9 @@ class LocalEvidenceTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 request=ActionRequest("request-"+kind,"io","profile","account",
                                       kind,target,1,price)
-                engine=Engine()
+                # Limites explicitamente abertos AQUI só no simulador do teste
+                # para demonstrar que mesmo assim o gate local bloqueia live.
+                engine=Engine(Policy(max_spend_gems=100, max_listing_gems=100))
                 token=engine.approvals.issue(request)
                 result=engine.execute(request,adapter,mode="live",
                                       approval_token=token)
