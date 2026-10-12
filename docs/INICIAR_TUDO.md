@@ -64,6 +64,24 @@ Configuração manual dos relatórios opcionais:
 
 Edite esses arquivos com seus dados reais digitados manualmente, alterando source de demo para manual apenas quando forem medições verdadeiras. Node.js é opcional somente para IVs. Depois execute INICIAR-TUDO.bat; os arquivos existentes são carregados automaticamente.
 
+## Compartilhar suas contas e medições existentes
+
+Como o GitHub worktree mantém pastas ignoradas pelo Git separadas,
+a nova branch pode não enxergar os arquivos antigos em data/.
+**Não movemos, sobrescrevemos nem copiamos senhas ou bancos automaticamente.**
+
+Para apontar o novo programa para a pasta privada atual, execute no PowerShell:
+
+    $env:IGA_DATA_DIR = 'C:\Users\helio\Documents\poke-idle-agent\poke-idle-agent\data'
+    .\INICIAR-TUDO.bat
+
+Esse comando vale para a sessão atual. Use o caminho real da SUA pasta data,
+que deve ser absoluto. O mesmo valor é respeitado por:
+
+    .\INICIAR-TUDO.bat --setup
+
+Assim as contas, medições, token da extensão e livro-caixa locais podem
+ser reutilizados entre worktrees sem duplicação. Nunca versione data/.
 ## Economia e segurança
 
 A extensão IO mostra leituras de HUD na rota permitida; o inicializador não executa ações no jogo. No financeiro, selecione uma conta IO cadastrada. Nenhuma conta do World pode ter USDT presumido. Somente saque manual comprovado entra como dinheiro recebido.
