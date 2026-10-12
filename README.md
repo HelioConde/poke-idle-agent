@@ -1,9 +1,42 @@
 # Idle Game Agent
 
-**Laboratório independente para Poke Idle World + Poke Idle IO.** Comparador de farm, painel local e protótipo de agente de jogos. Não depende do Brain-SSD.
+**Um sistema para Poke Idle IO e Poke Idle World, em um painel único no Windows.**
 
-**Status: MVP experimental.** A extensão já tenta observar métricas numéricas reais no IO, mas os seletores ainda não foram validados em uma conta autenticada. As recomendações são dry-run; o agente ainda não controla o jogo. Nenhum saque real foi confirmado.
+## INICIAR TUDO (Windows)
 
+**Dê dois cliques em INICIAR-TUDO.bat.** Ele inicia o monitor IO e o painel
+integrado juntos em http://127.0.0.1:8768 — sem abrir vários .bat.
+
+    INICIAR-TUDO.bat
+
+Outras opções no MESMO arquivo:
+
+    INICIAR-TUDO.bat --setup
+    INICIAR-TUDO.bat --test
+    INICIAR-TUDO.bat --check
+
+- `--setup`: cadastra contas e equipes por apelido, sem e-mail/senha.
+- `--test`: executa testes Python sem conectar ao jogo.
+- `--check`: verifica a estrutura sem abrir o servidor.
+
+O painel carrega automaticamente arquivos privados opcionais da pasta `data/`:
+contas, medições de hunts World, capturas sem VIP, IVs e ledger financeiro.
+Somente a extensão Chrome do IO precisa ser emparelhada manualmente uma vez,
+usando a chave gerada em `data/tab_registry_token.txt` (não compartilhar).
+
+**Poke Idle IO:** observação autorizada e recomendações; execução real
+permanece desativada até validar ações específicas. Depois do incidente
+`Desistir`, a parada real de farm por esse comando está expressamente bloqueada.
+
+**Poke Idle World:** cálculos PokeGrid e captura sem VIP apenas com dados
+anotados manualmente; sem bots externos, autothrow ou coleta de conta.
+Gold/diamantes no World não são USDT confirmado.
+
+Os antigos arquivos BAT permanecem só por compatibilidade, mas você não
+precisa executá-los. Consulte [guia da inicialização única](docs/INICIAR_TUDO.md).
+
+**Estado:** integração funcional de serviços locais e simuladores testados;
+não há comprovação de saques reais nem um bot externo ativado no World.
 ## Arquitetura universal — contas novas e qualquer Pokémon
 
 **Este agente não é configurado para Charizard 110.** O objetivo é iniciar em
