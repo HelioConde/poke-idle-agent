@@ -58,7 +58,9 @@ class RegistryTelemetryTests(unittest.TestCase):
         for minute in range(61):
             with patch("app.tab_registry.time.monotonic", return_value=100 + minute * 60):
                 registry.ingest(payload(xp=100 + minute * 10))
-                rates = registry.snapshot()["tabs"][0]["xp_windows"]
+                tab = registry.snapshot()["tabs"][0]
+                rates = tab["xp_windows"]
+                last_rate = tab["xp_per_hour"]
             if minute < 4:
                 self.assertNotIn("5m", rates)
             if minute < 12:
@@ -66,7 +68,7 @@ class RegistryTelemetryTests(unittest.TestCase):
             if minute < 48:
                 self.assertNotIn("60m", rates)
         self.assertEqual(rates, {"5m": 600, "15m": 600, "60m": 600})
-        self.assertEqual(registry.snapshot()["tabs"][0]["xp_per_hour"], 600)
+        self.assertEqual(last_rate, 600)
 
     def test_rolling_rates_reset_on_xp_loss_and_level_change(self):
         registry = Registry("test-token")
