@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from app.io_advisory import build_io_advisory
 from app.io_telemetry import (dry_run_decision, measured_xp_per_hour, sanitize,
                               sanitize_observation, sanitize_automation_audit)
 from app.memory import MemoryStore
@@ -279,6 +280,7 @@ class Registry:
                 tab["xp_per_hour"] = rate
                 tab["xp_windows"] = windows
                 tab["advice"] = dry_run_decision(stats, windows.get("5m", rate))
+                tab["advisory_queue"] = build_io_advisory(stats, windows, tab.get("io_audit"))
                 if self.memory:
                     self.memory.record_observation(
                         profile_id=profile_id,
