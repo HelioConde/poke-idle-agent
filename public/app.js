@@ -50,3 +50,52 @@ async function loadFinance() {
 }
 boot();
 loadFinance();
+
+async function loadWorldPokeGrid() {
+  const status = document.getElementById('world-companion-banner');
+  const container = document.getElementById('world-companion-results');
+  if (!status || !container) return;
+  container.replaceChildren();
+  try {
+    const response = await fetch('/api/world-pokegrid', {cache:'no-store'});
+    if (!response.ok) throw new Error('HTTP '+response.status);
+    const payload = await response.json();
+    if (!payload.configured) {
+      status.textContent = 'Nenhum relatório manual configurado. Abra o painel com --world-report data/world_snapshots.json';
+      return;
+    }
+    const report = payload.report;
+    status.textContent = report.is_demo
+      ? 'DADOS FICTÍCIOS — demonstração, sem conexão ao jogo e sem rendimentos reais.'
+      : 'ANOTAÇÕES MANUAIS — confira os valores; nenhuma ação automática é executada.';
+    if (!report.groups.length) {
+      const p=document.createElement('p'); p.textContent='Nenhuma medição cadastrada.';
+      container.appendChild(p); return;
+    }
+    for (const entry of report.groups.slice(0,40)) {
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const heading=document.createElement('strong');
+      heading.textContent=entry.account_id+' · '+entry.pokemon_id+' · '+entry.hunt_id;
+      card.appendChild(heading);
+      const body=document.createElement('p');
+      body.textContent=entry.status==='measured'
+        ? 'XP/h: '+entry.xp_per_hour.toLocaleString('pt-BR')+
+          ' · Gold líquido/h: '+entry.net_gold_per_hour.toLocaleString('pt-BR')+
+          ' · Abates/h: '+entry.kills_per_hour.toLocaleString('pt-BR')+
+          ' · Capturas/h: '+entry.captures_per_hour.toLocaleString('pt-BR')
+        : entry.status+': '+entry.reason;
+      card.appendChild(body);
+      if (entry.warnings?.length) {
+        const warning=document.createElement('p');
+        warning.className='muted';
+        warning.textContent=entry.warnings.join(' · ');
+        card.appendChild(warning);
+      }
+      container.appendChild(card);
+    }
+  } catch (error) {
+    status.textContent='Relatório manual não pôde ser carregado: '+error.message;
+  }
+}
+loadWorldPokeGrid();
