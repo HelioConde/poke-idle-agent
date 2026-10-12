@@ -4,6 +4,28 @@
 
 **Status: MVP experimental.** A extensão já tenta observar métricas numéricas reais no IO, mas os seletores ainda não foram validados em uma conta autenticada. As recomendações são dry-run; o agente ainda não controla o jogo. Nenhum saque real foi confirmado.
 
+## Motor de operação IO (experimental, em simulação)
+
+Adicionamos o motor de ações para **selecionar melhor hunt, iniciar/parar farm,
+inspecionar inventário/Pokémon, avaliar evolução, preparar/publicar anúncio,
+comprar itens/Pokémon, vender ao NPC e cancelar anúncios**.
+
+As propostas usam dados medidos por conta e Pokémon; operações comerciais
+exigem evidências de pelo menos três vendas concluídas comparáveis.
+O motor inclui políticas, estado anterior/posterior, aprovação humana
+individual, limites financeiros, pausa e parada de emergência.
+
+**Ainda não controla o Chrome autenticado.** O simulador é fictício e
+nenhum driver real foi validado; o modo real depende de mapear os controles
+do IO e liberar cada ação após testes separados. No World, continua proibido.
+
+Teste offline no Windows:
+
+    py -3 -m app.io_action_engine
+    py -3 -m unittest discover -s tests -v
+
+Detalhes e critérios para testar ações reais:
+[docs/IO_AUTOMACAO_OPERACIONAL.md](docs/IO_AUTOMACAO_OPERACIONAL.md).
 ## Arquitetura universal — contas novas e qualquer Pokémon
 
 **Este agente não é configurado para Charizard 110.** O objetivo é iniciar em
