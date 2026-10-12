@@ -26,8 +26,20 @@ const worldTab={id:8,windowId:3,url:"https://poke.idleworld.online/play",title:"
   assert.equal(result.code,"pairing_rejected");assert.equal(api.state.retry_count,0);assert.equal(api.scheduled.length,0);
 
   api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
+  result=await performScan({api,fetchFn:async()=>({ok:false,status:500,json:async()=>null}),now:()=>3500});
+  assert.equal(result.code,"sync_failed");assert.equal(api.state.last_http_status,500);assert.equal(api.scheduled.length,1);
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
+  result=await performScan({api,fetchFn:async()=>({ok:true,status:200,json:async()=>({ok:true})}),now:()=>3750});
+  assert.equal(result.code,"sync_failed");assert.equal(api.state.last_error,"Resposta local inválida.");
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
   result=await performScan({api,fetchFn:async()=>{throw new Error("Failed to fetch");},now:()=>4000});
   assert.equal(result.code,"server_unreachable");assert.equal(api.scheduled[0].name,"tab-sync-retry");
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[]);
+  result=await performScan({api,fetchFn:async()=>({ok:true,status:200,json:async()=>({ok:true,tab_count:0})}),now:()=>4500});
+  assert.equal(result.code,"no_matching_tabs");assert.equal(api.state.last_server_tab_count,0);
 
   api=fakeApi();
   result=await testConnection({api,fetchFn:async()=>({ok:true,json:async()=>({app:"idle-game-agent",mode:"unified"})})});
