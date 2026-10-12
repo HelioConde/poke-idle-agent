@@ -12,7 +12,9 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from app.financial_ledger import FinancialLedger
-from app.unified_launcher import available_files, existing_unified_server, ROOT
+from app.unified_launcher import available_files, existing_unified_server, resolve_data_dir, ROOT
+from unittest.mock import patch
+import os
 
 TOKEN = "test-only-registry-token-not-a-real-secret-123456"
 ORIGIN = "chrome-extension://" + "a" * 32
@@ -174,6 +176,17 @@ class IntegrationTests(unittest.TestCase):
 
     def test_existing_server_not_confused_with_nonunified(self):
         self.assertTrue(existing_unified_server(self.port))
+
+    def test_environment_can_reuse_original_private_data_folder(self):
+        old=self.dir/"existing-project"/"data"
+        old.mkdir(parents=True)
+        (old/"accounts.json").write_text("[]",encoding="utf-8")
+        with patch.dict(os.environ,{"IGA_DATA_DIR":str(old)}):
+            self.assertEqual(resolve_data_dir(ROOT),old.resolve())
+            self.assertEqual(available_files(ROOT)["accounts_path"],old/"accounts.json")
+        with patch.dict(os.environ,{"IGA_DATA_DIR":"relative/data"}):
+            with self.assertRaises(ValueError):
+                resolve_data_dir(ROOT)
 
     def test_private_options_do_not_load_demo_files_as_real(self):
         empty=self.dir/"empty"
