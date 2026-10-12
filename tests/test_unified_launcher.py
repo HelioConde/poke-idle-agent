@@ -42,6 +42,25 @@ class IntegrationTests(unittest.TestCase):
             asset_name="Item em teste", stage="sold", source="manual",
             gross_gems=100, category="item",
         )
+        # Medições locais fictícias para TESTE: nunca carregadas pelo launcher
+        # como dados reais do usuário.
+        records = json.loads(self.accounts_file.read_text(encoding="utf-8"))
+        io = next(item for item in records if item["game"] == "io")
+        io["hunts"].append({"id": "area-2", "label": "Segunda área",
+                             "unlocked": True, "required_trainer_level": None})
+        self.accounts_file.write_text(json.dumps(records), encoding="utf-8")
+        self.io_measurements = self.dir / "io_hunt_measurements.json"
+        def measure(hunt, xp, source="manual", profile="demo-io"):
+            return {"game": "io", "profile_id": profile,
+                    "account_id": "conta-io", "pokemon_id": "primeiro",
+                    "hunt_id": hunt, "minutes": 60, "xp_gained": xp,
+                    "resources_gained": 10, "resources_spent": 1,
+                    "defeats": 0, "source": source}
+        self.io_measurements.write_text(json.dumps([
+            measure("area-1", 100), measure("area-2", 250),
+            measure("area-1", 999999, source="demo"),
+            measure("area-1", 999999, profile="other")
+        ]), encoding="utf-8")
         self.port = unused_port()
         args = [
             sys.executable, "-c",
@@ -52,8 +71,9 @@ class IntegrationTests(unittest.TestCase):
             "Path('examples/pokegrid_snapshots_demo.json'),"
             "Path('examples/world_capture_demo.json'),"
             "registry=Registry(sys.argv[4]),accounts_path=Path(sys.argv[2]),"
-            "ivs_path=Path('examples/pokegrid_iv_demo.json'),open_browser=False)",
-            str(self.port), str(self.accounts_file), str(self.ledger_file), TOKEN
+            "ivs_path=Path('examples/pokegrid_iv_demo.json'),"
+            "io_measurements_path=Path(sys.argv[5]),open_browser=False)",
+            str(self.port), str(self.accounts_file), str(self.ledger_file), TOKEN, str(self.io_measurements)
         ]
         self.process = subprocess.Popen(
             args, cwd=ROOT, stdout=subprocess.DEVNULL,
@@ -99,6 +119,21 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(capture["is_demo"])
         self.assertFalse(capture["external_auto_catch_enabled"])
         self.assertEqual(capture["accounts"][0]["allowed_method"], "manual_throw")
+
+    def test_io_hunts_uses_only_matching_manual_measurements(self):
+        result = self.get("/api/io/hunts?objective=xp")
+        self.assertTrue(result["configured"])
+        self.assertFalse(result["identity_verified_live"])
+        self.assertEqual(result["execution"], "none")
+        self.assertEqual(len(result["comparisons"]), 1)
+        ranking = result["comparisons"][0]["ranking"]
+        self.assertEqual(ranking["status"], "ranked")
+        self.assertEqual(ranking["ranked"][0]["hunt_id"], "area-2")
+        first = next(row for row in ranking["ranked"] if row["hunt_id"] == "area-1")
+        self.assertEqual(first["xp_per_hour"], 100)
+        with self.assertRaises(HTTPError) as error:
+            self.get("/api/io/hunts?objective=execute")
+        self.assertEqual(error.exception.code, 422)
 
     def test_only_registered_account_can_get_financial_summary(self):
         summary = self.get("/api/finance?game=io&profile=demo-io&account=conta-io")
