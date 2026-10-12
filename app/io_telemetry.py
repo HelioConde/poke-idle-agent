@@ -104,36 +104,75 @@ TELEMETRY_PROTOCOL_VERSION = 2
 DOM_READER_VERSIONS = frozenset({"trainer-xp-scoped-v1", "unknown"})
 CONTENT_STATES = frozenset({"responded", "unavailable", "outdated", "not_app"})
 
-AUDIT_CONTROLS = frozenset({"trainer_panel", "active_pokemon_panel", "inventory",
-                            "surrender", "hunt_map"})
-AUDIT_POLICIES = frozenset({"read_only", "permanently_blocked", "not_audited"})
+AUDIT_SELECTORS = {
+    "trainer_panel": ".tr-dados",
+    "active_pokemon_panel": ".ativo-info",
+    "inventory": "#btn-bolsa",
+    "surrender": "#eco-desistir",
+    "hunt_map": 'button[data-modal="mapa"]',
+    "map_dialog": '#modal .modal-caixa[data-modal="mapa"]',
+    "native_capture_until": "#auto-ball-captura",
+    "native_capture_repeat": "#auto-ball-sem-parar",
+    "native_revive": "#auto-revive",
+    "native_potion": "#auto-potion",
+    "native_return_hunt": "#auto-voltar-hunt",
+}
+NATIVE_TOGGLE_CONTROLS = frozenset({
+    "native_capture_until", "native_capture_repeat",
+    "native_revive", "native_potion", "native_return_hunt",
+})
+MAP_STATES = frozenset({"unknown", "open", "closed"})
 
 
 def sanitize_automation_audit(value: object) -> dict:
-    """Aceita a auditoria fechada de controles, sem texto/HTML nem seletores livres.
+    """Lista fechada de seletores: observação DOM, nunca autorização de clique.
 
-    Ela descreve evidência de leitura. Não aprova cliques nem acrescenta
-    controles reais ao registro local independente.
+    Compatível com a extensão anterior, que ainda não enviava map_state e
+    informava hunt_map como não auditado. O payload não pode introduzir
+    seletores arbitrários, texto privado, HTML nem mudanças de política.
     """
-    if not isinstance(value, dict) or set(value) != {"route", "farm_state", "controls"}:
+    base = {"route", "farm_state", "controls"}
+    if (not isinstance(value, dict) or not base.issubset(value) or
+            set(value) - base - {"map_state"}):
         raise ValueError("Auditoria de controles inválida")
     if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
         raise ValueError("Estado da auditoria inválido")
+    if "map_state" in value and value["map_state"] not in MAP_STATES:
+        raise ValueError("Estado do mapa inválido")
     controls = value["controls"]
-    if not isinstance(controls, dict) or set(controls) - AUDIT_CONTROLS:
+    if not isinstance(controls, dict) or set(controls) - AUDIT_SELECTORS.keys():
         raise ValueError("Controles auditados inválidos")
     cleaned = {}
     for name, item in controls.items():
-        if not isinstance(item, dict) or set(item) != {"selector", "present", "enabled", "policy"}:
+        if not isinstance(item, dict):
             raise ValueError("Controle auditado inválido")
-        if item["selector"] not in {None, ".tr-dados", ".ativo-info", "#btn-bolsa", "#eco-desistir"}:
+        required = {"selector", "present", "enabled", "policy"}
+        extras = {"toggle_state"} if name in NATIVE_TOGGLE_CONTROLS else set()
+        if set(item) != required | (extras if "toggle_state" in item else set()):
+            raise ValueError("Formato de controle inválido")
+        expected = AUDIT_SELECTORS[name]
+        legacy_map = name == "hunt_map" and item["selector"] is None
+        if item["selector"] != expected and not legacy_map:
             raise ValueError("Seletor auditado inválido")
         if type(item["present"]) is not bool or type(item["enabled"]) is not bool:
             raise ValueError("Sinal de controle inválido")
-        if item["policy"] not in AUDIT_POLICIES:
+        if not item["present"] and item["enabled"]:
+            raise ValueError("Controle ausente não pode estar habilitado")
+        policy = ("permanently_blocked" if name == "surrender" else
+                  "not_audited" if legacy_map else "read_only")
+        if item["policy"] != policy or (legacy_map and item["present"]):
             raise ValueError("Política de controle inválida")
+        if "toggle_state" in item:
+            if item["toggle_state"] not in {"on", "off", "unknown"}:
+                raise ValueError("Estado de automação nativa inválido")
+            if not item["present"] and item["toggle_state"] != "unknown":
+                raise ValueError("Automação nativa ausente não tem estado")
         cleaned[name] = dict(item)
-    return {"route": value["route"], "farm_state": value["farm_state"], "controls": cleaned}
+    result = {"route": value["route"], "farm_state": value["farm_state"],
+              "controls": cleaned}
+    if "map_state" in value:
+        result["map_state"] = value["map_state"]
+    return result
 
 
 def sanitize_observation(value: object) -> dict:
