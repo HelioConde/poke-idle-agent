@@ -23,7 +23,9 @@ def payload(xp=100, game="io"):
             "observation": {"status": "metrics", "canvas": 0,
                             "iframes": 0, "candidates": 5,
                             "xp_candidates": 1, "xp_ambiguous": False,
-                            "xp_trainer_scoped": True}
+                            "xp_trainer_scoped": True, "xp_reason": "trainer_xp_scoped",
+                            "telemetry_protocol": 2, "reader_version": "trainer-xp-scoped-v1",
+                            "content_state": "responded"}
         }]
     }
 
@@ -61,6 +63,16 @@ class RegistryTelemetryTests(unittest.TestCase):
             row = reg.snapshot()["tabs"][0]
         self.assertNotIn("xp_current", row["telemetry"]["stats"])
         self.assertIsNone(row["xp_per_hour"])
+        self.assertEqual(row["observation"]["status"], "legacy_protocol")
+
+    def test_scoped_xp_without_current_protocol_cannot_be_used(self):
+        reg = Registry("test-token")
+        data = payload(xp=100)
+        for key in ("telemetry_protocol", "reader_version", "content_state"):
+            del data["tabs"][0]["observation"][key]
+        reg.ingest(data)
+        row = reg.snapshot()["tabs"][0]
+        self.assertNotIn("xp_current", row["telemetry"]["stats"])
 
     def test_unscoped_pokemon_xp_does_not_produce_trainer_rate(self):
         reg = Registry("test-token")

@@ -4,6 +4,7 @@
 "use strict";
 (function () {
   const MAX_NODES = 3500;
+  const DOM_READER_VERSION = "trainer-xp-scoped-v1";
   const RULES = [
     ["level", /^(?:[—–-]\s*)?(?:n[ií]vel|level|lv\.?|nv\.?|lvl\.?)\s*[:=#-]?\s*(\d[\d.,\s]*[kmb]?)\s*$/i],
     ["xp", /^(?:xp|exp|experi[eê]ncia)\s*[:=-]?\s*(\d[\d.,\s]*[kmb]?)(?:\s*\/\s*(\d[\d.,\s]*[kmb]?))?\s*$/i],
@@ -197,7 +198,7 @@
     };
     const status = !onApp ? (path === "/" ? "landing" : "other_route")
       : Object.keys(stats).length ? "metrics" : "no_matches";
-    return {source:"dom", stats, available:status==="metrics",
+    return {source:"dom", reader_version:DOM_READER_VERSION, stats, available:status==="metrics",
       diagnostic:{status,canvas:count("canvas"),iframes:count("iframe"),
         candidates:Math.min(3500,count("span,div,p,b,strong,small,label,li")),
         xp_candidates:Math.min(20,xpCandidates),
@@ -215,5 +216,5 @@
       return false;
     });
   }
-  if (typeof module !== "undefined") module.exports = {toNumber, extractFromLines, scanDocument, diagnose};
+  if (typeof module !== "undefined") module.exports = {DOM_READER_VERSION, toNumber, extractFromLines, scanDocument, diagnose};
 })();

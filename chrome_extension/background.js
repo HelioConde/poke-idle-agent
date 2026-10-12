@@ -1,6 +1,8 @@
 /* Detecta abas pelos endereços autorizados, sem ler conteúdo do jogo. */
 "use strict";
 const ENDPOINT = "http://127.0.0.1:8768/api/sync";
+const TELEMETRY_PROTOCOL_VERSION = 2;
+const DOM_READER_VERSION = "trainer-xp-scoped-v1";
 
 function classifyGame(address) {
   if (typeof address !== "string") return null;
@@ -46,12 +48,17 @@ async function readProfile() {
 async function observeTab(tab) {
   const item = safeTab(tab);
   if (!item || item.game !== "io") return item;
-  const empty = {canvas:0,iframes:0,candidates:0};
+  const diagnostic = (status, xp_reason, content_state, extra={}) => ({
+    status, canvas:0, iframes:0, candidates:0,
+    xp_candidates:0, xp_ambiguous:false, xp_trainer_scoped:false, xp_reason,
+    telemetry_protocol:TELEMETRY_PROTOCOL_VERSION,
+    reader_version:"unknown", content_state, ...extra
+  });
   if (item.route !== "app") {
-    item.observation = {...empty,status:item.route==="landing"?"landing":"other_route"};
+    item.observation = diagnostic(item.route==="landing"?"landing":"other_route", "not_on_app", "not_app");
     return item;
   }
-  item.observation = {...empty,status:"reader_unavailable"};
+  item.observation = diagnostic("reader_unavailable", "reader_unavailable", "unavailable");
   try {
     const reading = await chrome.tabs.sendMessage(tab.id, {type:"IGA_READ_IO_DOM"});
     if (reading && reading.source === "dom" && reading.stats &&
@@ -59,6 +66,8 @@ async function observeTab(tab) {
       item.telemetry = {source:"dom",stats:reading.stats};
       const d=reading.diagnostic||{};
       const bounded = (n, max)=>Number.isInteger(n)?Math.max(0,Math.min(max,n)):0;
+      const readerVersion = reading.reader_version === DOM_READER_VERSION ? DOM_READER_VERSION : "unknown";
+      const contentState = readerVersion === DOM_READER_VERSION ? "responded" : "outdated";
       item.observation = {
         status:reading.available?"metrics":"no_matches",
         canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),
@@ -66,7 +75,10 @@ async function observeTab(tab) {
         xp_candidates:bounded(d.xp_candidates,20),
         xp_ambiguous:d.xp_ambiguous===true,
         xp_trainer_scoped:d.xp_trainer_scoped===true,
-        xp_reason:typeof d.xp_reason==="string" ? d.xp_reason.slice(0,48) : "unknown"
+        xp_reason:typeof d.xp_reason==="string" ? d.xp_reason.slice(0,48) : "unknown",
+        telemetry_protocol:TELEMETRY_PROTOCOL_VERSION,
+        reader_version:readerVersion,
+        content_state:contentState
       };
     }
   } catch (_ignored) {
@@ -136,4 +148,4 @@ function installHandlers() {
   syncTabs();
 }
 if (typeof chrome !== "undefined" && chrome.runtime?.id) installHandlers();
-if (typeof module !== "undefined") module.exports = { classifyGame, safeTab, routeOfIo };
+if (typeof module !== "undefined") module.exports = { TELEMETRY_PROTOCOL_VERSION, DOM_READER_VERSION, classifyGame, safeTab, routeOfIo };

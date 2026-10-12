@@ -84,7 +84,8 @@ try{
     other_route:"Fora de /app: confirme se abriu o jogo.",
     reader_unavailable:"Leitor não respondeu: recarregue extensão e aba /app.",
     no_matches:"DOM acessado, mas HUD ainda não reconhecido.",
-    metrics:"Leitura numérica disponível."
+    metrics:"Leitura numérica disponível.",
+    legacy_protocol:"Leitor desatualizado: recarregue a extensão 0.2.2 e a aba /app."
   };
   let diagnostic=row.game==='world'?'World: somente identificação de aba':
     (explanations[obs.status]||"Aguardando dados");
@@ -103,9 +104,13 @@ try{
       trainer_level_missing:'Nível do treinador ausente no quadro; XP/h bloqueado.',
       trainer_xp_missing:'Barra de XP do treinador ausente ou incompleta; XP/h bloqueado.',
       trainer_xp_ambiguous:'Mais de uma barra no quadro do treinador; XP/h bloqueado.',
-      unknown:'Extensão sem diagnóstico de origem; recarregue a versão 0.2.1.'
+      reader_unavailable:'Content script não respondeu; nenhuma métrica foi inventada.',
+      unknown:'Extensão sem diagnóstico de origem; recarregue a versão 0.2.2.'
     };
     diagnostic=reasons[obs.xp_reason]||diagnostic;
+  }
+  if(row.game==='io' && obs.content_state==='outdated'){
+    diagnostic='Content script desatualizado: recarregue a extensão e a aba /app.';
   }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
@@ -174,10 +179,19 @@ class Registry:
                         "landing", "other_route"):
                     raise ValueError("Diagnóstico não corresponde à rota IO")
                 entry["observation"] = sanitize_observation(tab["observation"])
+            elif tab["game"] == "io":
+                # Protocolos anteriores não enviavam diagnóstico; mantemos a aba,
+                # mas rejeitamos seus valores de XP para cálculo de XP/h.
+                entry["observation"] = {"status": "legacy_protocol", "canvas": 0,
+                                        "iframes": 0, "candidates": 0}
             if tab["game"] == "io" and "telemetry" in entry:
                 # Nao confiar em XP de extensoes antigas (ou barras do Pokemon).
                 # Somente a leitura comprovada em .tr-dados vale como XP do treinador.
-                scope_verified = entry.get("observation", {}).get("xp_trainer_scoped") is True
+                observation = entry.get("observation", {})
+                scope_verified = (observation.get("xp_trainer_scoped") is True and
+                                  observation.get("telemetry_protocol") == 2 and
+                                  observation.get("reader_version") == "trainer-xp-scoped-v1" and
+                                  observation.get("content_state") == "responded")
                 if not scope_verified:
                     entry["telemetry"]["stats"].pop("xp_current", None)
                     entry["telemetry"]["stats"].pop("xp_max", None)
@@ -195,7 +209,11 @@ class Registry:
                 stats = (reading or {}).get("stats") or {}
                 key = (profile_id, tab["tab_id"])
                 last = self.samples.get(key)
-                scope_verified = tab.get("observation", {}).get("xp_trainer_scoped") is True
+                observation = tab.get("observation", {})
+                scope_verified = (observation.get("xp_trainer_scoped") is True and
+                                  observation.get("telemetry_protocol") == 2 and
+                                  observation.get("reader_version") == "trainer-xp-scoped-v1" and
+                                  observation.get("content_state") == "responded")
                 rate = last.get("rate") if last else None
                 if not scope_verified or "xp_current" not in stats:
                     rate = None

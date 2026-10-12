@@ -259,11 +259,17 @@ async function refreshUnifiedTabs() {
         const source=item.observation?.xp_trainer_scoped===true
           ? 'origem: treinador confirmada'
           : 'origem do XP: não confirmada';
+        const reader=item.observation?.status==='legacy_protocol'
+          ? 'leitor desatualizado; recarregue extensão e /app'
+          : (item.observation?.content_state==='outdated'
+            ? 'content script desatualizado'
+            : 'leitor: '+(item.observation?.content_state || 'sem confirmação'));
         paragraph.textContent=xp+' · Nível: '+(stats.level ?? 'desconhecido')+
           ' · XP treinador: '+trainerXp+' · '+source+
           ' · '+(item.observation?.xp_ambiguous
             ? 'XP ambíguo: '+item.observation.xp_candidates+' barras distintas, sem XP/h'
             : (item.advice?.reason || 'Leitura IO pendente'))+
+          ' · '+reader+
           ' · Atualizada há '+item.age_seconds+'s';
       } else {
         paragraph.textContent='Poke Idle World: somente identificação da aba; telemetria privada desativada.';

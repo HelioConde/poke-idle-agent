@@ -41,7 +41,7 @@ const blankDoc={querySelectorAll(selector){
   return [];
 }};
 assert.deepEqual(diagnose(blankDoc,"/app"),{
- source:"dom",stats:{},available:false,
+ source:"dom",reader_version:"trainer-xp-scoped-v1",stats:{},available:false,
  diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0,
    xp_candidates:0,xp_ambiguous:false,xp_trainer_scoped:false,
    xp_reason:"trainer_panel_missing"}
@@ -80,7 +80,7 @@ const doubleXP={querySelectorAll(selector){
  ];
 }};
 assert.deepEqual(diagnose(doubleXP,"/app"),{
- source:"dom",stats:{},available:false,
+ source:"dom",reader_version:"trainer-xp-scoped-v1",stats:{},available:false,
  diagnostic:{status:"no_matches",canvas:9,iframes:0,candidates:4,
    xp_candidates:2,xp_ambiguous:true,xp_trainer_scoped:false,
    xp_reason:"trainer_level_missing"}
@@ -116,7 +116,7 @@ const scopedHud = {
 assert.deepEqual(scanDocument(scopedHud),
   {level:19,xp_current:7346,xp_max:15400});
 assert.deepEqual(diagnose(scopedHud,"/app"),{
-  source:"dom",available:true,
+  source:"dom",reader_version:"trainer-xp-scoped-v1",available:true,
   stats:{level:19,xp_current:7346,xp_max:15400},
   diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:5,
     xp_candidates:2,xp_ambiguous:false,xp_trainer_scoped:true,

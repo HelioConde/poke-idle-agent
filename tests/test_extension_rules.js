@@ -1,5 +1,8 @@
 const assert = require("node:assert/strict");
-const {classifyGame, safeTab, routeOfIo} = require("../chrome_extension/background.js");
+const {TELEMETRY_PROTOCOL_VERSION, DOM_READER_VERSION, classifyGame, safeTab, routeOfIo} = require("../chrome_extension/background.js");
+
+assert.equal(TELEMETRY_PROTOCOL_VERSION, 2);
+assert.equal(DOM_READER_VERSION, "trainer-xp-scoped-v1");
 
 assert.equal(classifyGame("https://pokeidle.io/play?auth=hidden"), "io");
 assert.equal(classifyGame("https://www.pokeidle.io/"), "io");
