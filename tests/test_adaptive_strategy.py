@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from app.adaptive_strategy import (
-    Account, Hunt, Measurement, Pokemon, plan, plan_many, rank_hunts
+    Account, Hunt, MarketEvidence, Measurement, Pokemon, plan, plan_many, rank_hunts
 )
 
 
@@ -148,6 +148,26 @@ class MultipleAccountsTests(unittest.TestCase):
         state=account(game="io")
         self.assertEqual(plan(state,[],"monetization")["stage"],"market_research")
 
+    def test_io_financial_goal_uses_only_same_account_market_evidence(self):
+        state=account(game="io")
+        evidence=MarketEvidence.parse({"game":"io","profile_id":"profile-A","account_id":"account-A",
+            "name":"Token de boss","expected_net_gems_per_hour":3,"sale_probability":.8,
+            "confidence":.9,"comparable_completed_sales":3,"source":"observed"})
+        other=MarketEvidence.parse({"game":"io","profile_id":"profile-B","account_id":"account-B",
+            "name":"Outro","expected_net_gems_per_hour":999,"sale_probability":1,
+            "confidence":1,"comparable_completed_sales":3,"source":"observed"})
+        out=plan(state,[],"monetization",[evidence,other])
+        self.assertEqual(out["stage"],"market_optimization")
+        self.assertEqual(out["recommended_asset"],"Token de boss")
+
+    def test_demo_market_evidence_never_produces_financial_recommendation(self):
+        state=account(game="io")
+        evidence=MarketEvidence.parse({"game":"io","profile_id":"profile-A","account_id":"account-A",
+            "name":"Ativo demo","expected_net_gems_per_hour":99,"sale_probability":1,
+            "confidence":1,"comparable_completed_sales":99,"source":"demo"})
+        self.assertEqual(plan_many([state], [], "monetization", [evidence])[0]["stage"],
+                         "market_research")
+
     def test_world_never_claims_verified_cashout(self):
         state=account()
         self.assertEqual(plan(state,[])["capabilities"]["cashout"],"unverified")
@@ -250,6 +270,28 @@ class DataContractTests(unittest.TestCase):
         data=json.loads(result.stdout)
         self.assertEqual(len(data),3)
         self.assertTrue(all(row["capabilities"]["mode"] in ("manual_advice","dry_run") for row in data))
+
+    def test_cli_market_file_is_account_scoped(self):
+        payload={"game":"io","profile_id":"profile-A","account_id":"account-A",
+                 "trainer_level":1,"roster":[pokemon()],"active_pokemon_id":"mon-1",
+                 "hunts":[hunt()]}
+        market={"game":"io","profile_id":"profile-A","account_id":"account-A",
+                "name":"Item medido","expected_net_gems_per_hour":2,
+                "sale_probability":.75,"confidence":.8,
+                "comparable_completed_sales":3,"source":"manual"}
+        with tempfile.TemporaryDirectory() as directory:
+            directory=Path(directory)
+            accounts=directory/"accounts.json"
+            evidence=directory/"market.json"
+            accounts.write_text(json.dumps([payload]),encoding="utf-8")
+            evidence.write_text(json.dumps([market]),encoding="utf-8")
+            root=Path(__file__).resolve().parents[1]
+            result=subprocess.run([sys.executable,"-m","app.adaptive_strategy",
+                                   "--accounts",str(accounts),"--market",str(evidence),
+                                   "--objective","monetization"],
+                                  cwd=root,capture_output=True,text=True,check=True)
+        data=json.loads(result.stdout)
+        self.assertEqual(data[0]["recommended_asset"],"Item medido")
 
 
 if __name__ == "__main__":

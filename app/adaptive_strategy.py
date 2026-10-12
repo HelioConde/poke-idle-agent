@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.economy import Opportunity, recommend
+
 GAMES = frozenset({"world", "io"})
 OBJECTIVES = frozenset({"balanced", "xp", "resources", "monetization"})
 SOURCES = frozenset({"manual", "observed", "demo"})
@@ -166,6 +168,36 @@ class Measurement:
             defeats, raw["source"])
 
 
+@dataclass(frozen=True)
+class MarketEvidence:
+    profile_id: str
+    account_id: str
+    game: str
+    name: str
+    expected_net_gems_per_hour: float
+    sale_probability: float
+    confidence: float
+    comparable_completed_sales: int
+    source: str
+
+    @classmethod
+    def parse(cls, raw: dict) -> "MarketEvidence":
+        _fields(raw, {"profile_id", "account_id", "game", "name",
+                      "expected_net_gems_per_hour", "sale_probability", "confidence",
+                      "comparable_completed_sales", "source"}, set(), "Mercado")
+        if raw["game"] not in GAMES or raw["source"] not in SOURCES:
+            raise ValueError("Mercado: jogo/origem inválidos")
+        sales = raw["comparable_completed_sales"]
+        if type(sales) is not int or sales < 0:
+            raise ValueError("Mercado: vendas comparáveis inválidas")
+        return cls(_identifier(raw["profile_id"], "Perfil"),
+                   _identifier(raw["account_id"], "Conta"), raw["game"],
+                   _identifier(raw["name"], "Ativo"),
+                   _number(raw["expected_net_gems_per_hour"], "Gems/h"),
+                   _number(raw["sale_probability"], "Probabilidade", 1),
+                   _number(raw["confidence"], "Confiança", 1), sales, raw["source"])
+
+
 def rank_hunts(account: Account, measurements: list[Measurement],
                goal: str = "balanced") -> dict:
     """Compara APENAS dados da mesma conta e do mesmo Pokémon ativo.
@@ -223,8 +255,8 @@ def rank_hunts(account: Account, measurements: list[Measurement],
             "note": "Recursos do jogo não são dinheiro recebido; nenhuma ação foi executada"}
 
 
-def plan(account: Account, measurements: list[Measurement],
-         objective: str = "balanced") -> dict:
+def plan(account: Account, measurements: list[Measurement], objective: str = "balanced",
+         market_evidence: list[MarketEvidence] | None = None) -> dict:
     if objective not in OBJECTIVES:
         raise ValueError("Objetivo inválido")
     # Capacidade baseada no jogo, jamais no nível ou espécie.
@@ -268,6 +300,18 @@ def plan(account: Account, measurements: list[Measurement],
         return result("unlock", "inspect_hunt_access",
                       "Nenhuma hunt confirmada como acessível; verificar desbloqueios do jogo",
                       next_declared_trainer_milestone=locked[0] if locked else None)
+    if objective == "monetization":
+        evidence = [item for item in (market_evidence or [])
+                    if (item.game, item.profile_id, item.account_id) == account.key and
+                    item.source != "demo"]
+        market = recommend([Opportunity(item.name, 0, item.expected_net_gems_per_hour,
+                                        item.sale_probability, item.confidence,
+                                        item.comparable_completed_sales)
+                            for item in evidence])
+        if market["action"] == "measure_more":
+            return result("market_research", "measure_sales", market["reason"], evaluation=market)
+        return result("market_optimization", "review_market_opportunity", market["reason"],
+                      recommended_asset=market["name"], evaluation=market)
     ranking = rank_hunts(account, measurements, objective)
     if ranking["status"] == "market_data_required":
         return result("market_research", "measure_sales",
@@ -283,13 +327,15 @@ def plan(account: Account, measurements: list[Measurement],
 
 
 def plan_many(accounts: list[Account], measurements: list[Measurement],
-              objective: str = "balanced") -> list[dict]:
-    if len(accounts) > MAX_RECORDS or len(measurements) > MAX_RECORDS:
+              objective: str = "balanced",
+              market_evidence: list[MarketEvidence] | None = None) -> list[dict]:
+    if (len(accounts) > MAX_RECORDS or len(measurements) > MAX_RECORDS or
+            len(market_evidence or []) > MAX_RECORDS):
         raise ValueError("Registros excedem o limite")
     keys = [a.key for a in accounts]
     if len(set(keys)) != len(keys):
         raise ValueError("Conta duplicada no mesmo jogo/perfil")
-    return [plan(account, measurements, objective) for account in accounts]
+    return [plan(account, measurements, objective, market_evidence) for account in accounts]
 
 
 def main() -> None:
@@ -297,16 +343,22 @@ def main() -> None:
         description="Planejador universal offline: qualquer conta ou Pokémon")
     parser.add_argument("--accounts", type=Path, required=True)
     parser.add_argument("--measurements", type=Path)
+    parser.add_argument("--market", type=Path,
+                        help="evidências de vendas concluídas por conta; dados demo não contam")
     parser.add_argument("--objective", choices=sorted(OBJECTIVES), default="balanced")
     args = parser.parse_args()
     accounts_data = json.loads(args.accounts.read_text(encoding="utf-8-sig"))
     measurements_data = (json.loads(args.measurements.read_text(encoding="utf-8-sig"))
                          if args.measurements else [])
-    if not isinstance(accounts_data, list) or not isinstance(measurements_data, list):
+    market_data = (json.loads(args.market.read_text(encoding="utf-8-sig"))
+                   if args.market else [])
+    if (not isinstance(accounts_data, list) or not isinstance(measurements_data, list)
+            or not isinstance(market_data, list)):
         parser.error("Arquivos precisam conter listas JSON")
     accounts = [Account.parse(a) for a in accounts_data]
     samples = [Measurement.parse(m) for m in measurements_data]
-    print(json.dumps(plan_many(accounts, samples, args.objective),
+    evidence = [MarketEvidence.parse(item) for item in market_data]
+    print(json.dumps(plan_many(accounts, samples, args.objective, evidence),
                      ensure_ascii=False, indent=2))
 
 

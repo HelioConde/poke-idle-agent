@@ -36,8 +36,15 @@ São **fictícios**, não comprovam receitas nem experiência no jogo real.
 Para comparar hunts reais, forneça JSON de medições por perfil, conta,
 jogo, Pokémon e hunt, conforme docs/ARQUITETURA_ADAPTATIVA.md.
 
-**Commits econômicos locais do Copilot não foram mesclados** nesta branch.
-Preserve-os antes de reconciliar as mudanças.
+Para o objetivo monetário no IO, acrescente evidências de mercado separadas
+por jogo, perfil e conta. Elas precisam representar vendas concluídas
+comparáveis, sem dados `demo`:
+
+    py -3 -m app.adaptive_strategy --accounts data/accounts.json --objective monetization --market data/minhas_vendas_concluidas.json
+
+O planejador só recomenda revisar uma oportunidade depois que o motor econômico
+validar no mínimo três vendas comparáveis. Essa recomendação é dry-run: não
+cria anúncios, não compra e não solicita saque.
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
