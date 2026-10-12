@@ -64,7 +64,8 @@ async function observeTab(tab) {
         canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),
         candidates:bounded(d.candidates,3500),
         xp_candidates:bounded(d.xp_candidates,20),
-        xp_ambiguous:d.xp_ambiguous===true
+        xp_ambiguous:d.xp_ambiguous===true,
+        xp_trainer_scoped:d.xp_trainer_scoped===true
       };
     }
   } catch (_ignored) {
