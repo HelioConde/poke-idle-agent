@@ -76,9 +76,11 @@ try{
   const read=(value)=>typeof value==='number'?value.toLocaleString('pt-BR'):'—';
   const hp=typeof stats.hp_current==='number'
     ?read(stats.hp_current)+(typeof stats.hp_max==='number'?'/'+read(stats.hp_max):''):'—';
-  const xp=typeof stats.xp_current==='number'
-    ?read(stats.xp_current)+(typeof stats.xp_max==='number'?'/'+read(stats.xp_max):''):'Aguardando amostras';
   const obs=row.observation||{};
+  const legacy=obs.status==='legacy_protocol';
+  const xp=legacy?'Bloqueado: leitor desatualizado':(typeof stats.xp_current==='number'
+    ?read(stats.xp_current)+(typeof stats.xp_max==='number'?'/'+read(stats.xp_max):''):'Aguardando segunda amostra');
+  const rate=legacy?'Bloqueado: protocolo incompatível':read(row.xp_per_hour);
   const explanations={
     landing:"Página inicial. Clique em Jogar Grátis para entrar em /app.",
     other_route:"Fora de /app: confirme se abriu o jogo.",
@@ -115,7 +117,7 @@ try{
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
   for(const value of [row.profile_label,row.game==='io'?'Poke Idle IO':'Poke Idle World',
-    row.title,row.active?'Sim':'Não',read(stats.level),xp,read(row.xp_per_hour),
+    row.title,row.active?'Sim':'Não',read(stats.level),xp,rate,
     hp,read(stats.coins),read(stats.gems),diagnostic,advice,row.age_seconds+'s atrás']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);
@@ -178,7 +180,14 @@ class Registry:
                 if route is not None and route != "app" and tab["observation"].get("status") not in (
                         "landing", "other_route"):
                     raise ValueError("Diagnóstico não corresponde à rota IO")
-                entry["observation"] = sanitize_observation(tab["observation"])
+                observation = sanitize_observation(tab["observation"])
+                # Um diagnóstico parcial de versões anteriores tinha status=metrics,
+                # mas não carregava a prova de escopo nem o protocolo 2. Tratá-lo
+                # como leitura válida confundiria o painel; normalize explicitamente.
+                entry["observation"] = (observation if "telemetry_protocol" in observation else {
+                    "status": "legacy_protocol", "canvas": 0,
+                    "iframes": 0, "candidates": 0,
+                })
             elif tab["game"] == "io":
                 # Protocolos anteriores não enviavam diagnóstico; mantemos a aba,
                 # mas rejeitamos seus valores de XP para cálculo de XP/h.

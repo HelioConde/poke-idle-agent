@@ -250,16 +250,18 @@ async function refreshUnifiedTabs() {
       const paragraph=document.createElement('p');
       if(item.game === 'io'){
         const stats = item.telemetry?.stats || {};
-        const xp=(typeof item.xp_per_hour==='number')
-          ? item.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h'
-          : 'XP/h: aguardando amostras';
+        const legacy=item.observation?.status==='legacy_protocol';
+        const xp=legacy ? 'XP/h bloqueado: leitor desatualizado'
+          : ((typeof item.xp_per_hour==='number')
+            ? item.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h'
+            : 'XP/h: aguardando segunda amostra');
         const trainerXp=(typeof stats.xp_current==='number' && typeof stats.xp_max==='number')
           ? stats.xp_current.toLocaleString('pt-BR')+' / '+stats.xp_max.toLocaleString('pt-BR')
           : 'não confirmado';
         const source=item.observation?.xp_trainer_scoped===true
           ? 'origem: treinador confirmada'
           : 'origem do XP: não confirmada';
-        const reader=item.observation?.status==='legacy_protocol'
+        const reader=legacy
           ? 'leitor desatualizado; recarregue extensão e /app'
           : (item.observation?.content_state==='outdated'
             ? 'content script desatualizado'

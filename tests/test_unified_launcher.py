@@ -126,7 +126,9 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("XP atual/máx.", monitor)
         self.assertIn("table-scroll", monitor)
         with urlopen(self.url("/monitor/registry.js"), timeout=2) as res:
-            self.assertIn("/api/tabs", res.read().decode("utf-8"))
+            registry_js = res.read().decode("utf-8")
+        self.assertIn("/api/tabs", registry_js)
+        self.assertIn("Bloqueado: leitor desatualizado", registry_js)
 
     def test_iv_optional_node_runs_in_same_dashboard(self):
         # A primeira execução do Node no runner Linux pode exceder dois

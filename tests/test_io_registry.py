@@ -65,6 +65,17 @@ class RegistryTelemetryTests(unittest.TestCase):
         self.assertIsNone(row["xp_per_hour"])
         self.assertEqual(row["observation"]["status"], "legacy_protocol")
 
+    def test_partial_old_diagnostic_is_normalized_as_legacy(self):
+        reg = Registry("test-token")
+        data = payload()
+        data["tabs"][0]["observation"] = {
+            "status": "metrics", "canvas": 0, "iframes": 0, "candidates": 5,
+        }
+        reg.ingest(data)
+        row = reg.snapshot()["tabs"][0]
+        self.assertEqual(row["observation"]["status"], "legacy_protocol")
+        self.assertNotIn("xp_current", row["telemetry"]["stats"])
+
     def test_scoped_xp_without_current_protocol_cannot_be_used(self):
         reg = Registry("test-token")
         data = payload(xp=100)
@@ -147,7 +158,10 @@ class DiagnosticTests(unittest.TestCase):
         row["tabs"][0].pop("telemetry")
         row["tabs"][0]["observation"] = {
             "status": "reader_unavailable", "canvas": 0,
-            "iframes": 0, "candidates": 0}
+            "iframes": 0, "candidates": 0, "xp_candidates": 0,
+            "xp_ambiguous": False, "xp_trainer_scoped": False,
+            "xp_reason": "reader_unavailable", "telemetry_protocol": 2,
+            "reader_version": "unknown", "content_state": "unavailable"}
         registry = Registry("test")
         registry.ingest(row)
         tab = registry.snapshot()["tabs"][0]
@@ -161,7 +175,7 @@ class DiagnosticTests(unittest.TestCase):
             "iframes": 1, "candidates": 100}
         registry = Registry("test")
         registry.ingest(row)
-        self.assertEqual(registry.snapshot()["tabs"][0]["observation"]["canvas"], 2)
+        self.assertEqual(registry.snapshot()["tabs"][0]["observation"]["status"], "legacy_protocol")
         row["tabs"][0]["observation"]["url"] = "/app?token=secret"
         with self.assertRaises(ValueError):
             registry.ingest(row)
@@ -184,7 +198,10 @@ class DiagnosticTests(unittest.TestCase):
         row["tabs"][0].pop("telemetry")
         row["tabs"][0]["observation"] = {
             "status": "reader_unavailable", "canvas": 0,
-            "iframes": 0, "candidates": 0}
+            "iframes": 0, "candidates": 0, "xp_candidates": 0,
+            "xp_ambiguous": False, "xp_trainer_scoped": False,
+            "xp_reason": "reader_unavailable", "telemetry_protocol": 2,
+            "reader_version": "unknown", "content_state": "unavailable"}
         with patch("app.tab_registry.time.monotonic", return_value=180):
             registry.ingest(row)
             self.assertIsNone(registry.snapshot()["tabs"][0]["xp_per_hour"])
