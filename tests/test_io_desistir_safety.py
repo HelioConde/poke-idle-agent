@@ -45,7 +45,7 @@ class LossyStopRegressionTests(unittest.TestCase):
         readings=[
             observation(farming=True,session_farming=True,xp=5490),
             observation(farming=True,session_farming=True,
-                        scene="pokemon_center",defeated=True,xp=4941)
+                        scene="pokemon_center",defeated=True,xp=4949)
         ]
         self.assertEqual(reconcile_farm_state(readings)["status"],"recovery_required")
 
@@ -55,7 +55,7 @@ class LossyStopRegressionTests(unittest.TestCase):
         self.assertEqual(reconcile_farm_state(readings)["status"],"inconsistent")
 
     def test_explicit_xp_loss_never_counts_as_safe_stop(self):
-        frames=[observation(xp=5490),observation(xp=4941)]
+        frames=[observation(xp=5490),observation(xp=4949)]
         self.assertEqual(reconcile_farm_state(frames)["status"],"xp_loss")
 
     def test_transition_between_snapshots_not_stable(self):
@@ -74,12 +74,12 @@ class LossyStopRegressionTests(unittest.TestCase):
     def test_stop_not_success_after_team_defeat(self):
         before=observation(farming=True,session_farming=True,xp=5490)
         after=observation(farming=False,session_farming=False,
-                          scene="pokemon_center",defeated=True,xp=4941)
+                          scene="pokemon_center",defeated=True,xp=4949)
         self.assertFalse(verify_transition(command("stop_farm",""),before,after))
 
     def test_stop_not_success_if_trainer_xp_drops(self):
         before=observation(farming=True,session_farming=True,xp=5490)
-        after=observation(farming=False,session_farming=False,xp=4941)
+        after=observation(farming=False,session_farming=False,xp=4949)
         self.assertFalse(verify_transition(command("stop_farm",""),before,after))
 
     def test_live_stop_farm_denied_even_with_verified_adapter(self):
@@ -120,7 +120,7 @@ class LossyStopRegressionTests(unittest.TestCase):
             performed=False
             def observe(self):
                 return observation(farming=True,session_farming=True,
-                                   scene="pokemon_center",defeated=True,xp=4941)
+                                   scene="pokemon_center",defeated=True,xp=4949)
             def perform(self,request):
                 self.performed=True
         adapter=CentreAdapter()
@@ -138,7 +138,7 @@ class LossyStopRegressionTests(unittest.TestCase):
             executed=False
             def observe(self):
                 return observation(farming=self.executed,session_farming=self.executed,
-                                   xp=4941 if self.executed else 5490)
+                                   xp=4949 if self.executed else 5490)
             def perform(self,request):
                 self.executed=True
         adapter=MisbehavingSimulator()
@@ -155,7 +155,7 @@ class LossyStopRegressionTests(unittest.TestCase):
             performed=False
             def observe(self):
                 return observation(farming=False,session_farming=True,
-                                   scene="pokemon_center",defeated=True,xp=4941)
+                                   scene="pokemon_center",defeated=True,xp=4949)
             def perform(self, request):
                 self.performed=True
         adapter=Defeated()
