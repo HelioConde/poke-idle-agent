@@ -32,6 +32,20 @@
 <div id="io-automation-grid" class="world-results"></div>
 <p class="muted">Menu Mapa e automações nativas são apenas identificados; não são acionados pelo agente. Seleção de hunt e início de farm continuam bloqueados até auditoria e aprovação específica. Desistir permanece proibido.</p>
 </section>
+<section class="panel" aria-label="Comparação consultiva de hunts IO">
+<p class="eyebrow">POKE IDLE IO · COMPARADOR DE HUNTS</p>
+<h2>Qual hunt rende mais?</h2>
+<p class="muted">Medições inseridas por você no arquivo local. Não assumimos que a aba Chrome pertence à conta cadastrada, nem acionamos o jogo.</p>
+<label for="io-hunt-objective">Objetivo da comparação</label>
+<select id="io-hunt-objective" class="account-select" aria-label="Objetivo da comparação de hunts">
+<option value="xp">XP/h</option>
+<option value="resources">Recursos líquidos/h</option>
+<option value="balanced">Equilibrado</option>
+</select>
+<p id="io-hunt-status" class="muted" role="status">Carregando medições IO…</p>
+<div id="io-hunt-results" class="world-results" aria-live="polite"></div>
+<p class="muted">O ranking exige no mínimo duas hunts desbloqueadas, com pelo menos 30 minutos de medição por hunt e o mesmo Pokémon ativo. Apenas sugestões: nenhuma ação é autorizada.</p>
+</section>
 <section class="metrics" aria-label="Resumo dos jogos">
 <article class="game"><div class="game-top"><div class="game-icon">W</div><div><h2>Poke Idle World</h2><p>Modo: análise somente leitura</p></div></div>
 <div class="values"><div><small>XP por hora</small><strong data-field="world:xp_per_hour">—</strong></div>
