@@ -174,5 +174,43 @@ const audit=readAutomationAudit(auditDoc,"/app");
 assert.equal(audit.route,"app");
 assert.equal(audit.farm_state,"active");
 assert.deepEqual(audit.controls.surrender,{selector:"#eco-desistir",present:true,enabled:true,policy:"permanently_blocked"});
-assert.deepEqual(audit.controls.hunt_map,{selector:null,present:false,enabled:false,policy:"not_audited"});
+assert.deepEqual(audit.controls.hunt_map,{selector:'button[data-modal="mapa"]',present:false,enabled:false,policy:"read_only"});
 console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");
+
+assert.equal(audit.map_state,"unknown");
+assert.equal(audit.controls.native_revive.toggle_state,"unknown");
+
+// Estrutura do modal Mapa observada em referências externas do MESMO jogo.
+// Nunca interagir com os botões; aqui somente verificamos presença e estados.
+function makeMapDoc({hidden=false,mapButton=true,modalBox=true}={}) {
+  const nodes={
+    "#eco-painel":{textContent:"caçando"},
+    ".tr-dados":{disabled:false},
+    "#eco-desistir":{disabled:false},
+    "#modal":{hidden:false,classList:{contains(name){return hidden&&name==="hidden";}}},
+    "#auto-revive":{checked:true,disabled:false},
+    "#auto-potion":{checked:false,disabled:false},
+    "#auto-ball-captura":{checked:true,disabled:false},
+    "#auto-ball-sem-parar":{checked:false,disabled:false},
+    "#auto-voltar-hunt":{disabled:false}
+  };
+  if(mapButton)nodes['button[data-modal="mapa"]']={disabled:false};
+  if(modalBox)nodes['#modal .modal-caixa[data-modal="mapa"]']={disabled:false};
+  return {querySelector(selector){return nodes[selector]||null;}};
+}
+const openMap=readAutomationAudit(makeMapDoc(),"/app");
+assert.equal(openMap.map_state,"open");
+assert.equal(openMap.controls.hunt_map.present,true);
+assert.equal(openMap.controls.map_dialog.present,true);
+assert.equal(openMap.controls.native_revive.toggle_state,"on");
+assert.equal(openMap.controls.native_potion.toggle_state,"off");
+assert.equal(openMap.controls.native_return_hunt.toggle_state,"unknown");
+assert.equal(openMap.controls.surrender.policy,"permanently_blocked");
+const closedMap=readAutomationAudit(makeMapDoc({hidden:true}),"/app");
+assert.equal(closedMap.map_state,"closed");
+assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,"closed");
+assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
+assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
+  route:"not_app",farm_state:"unknown",map_state:"unknown",controls:{}
+});
+console.log("IO DOM: mapa e automacoes nativas detectados somente em leitura");
