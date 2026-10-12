@@ -57,3 +57,23 @@ continua aceito para compatibilidade com leitores antigos.
 `https://pokeidle.io/app` e analisar se selecionar uma hunt afeta farm ativo.
 Até revisão e aprovação humana específicas, `select_hunt`, `start_farm`,
 `stop_farm` e modo live permanecem bloqueados; o registro local segue vazio.
+
+
+## Evolução do monitor por referências dos launchers
+
+Inspirado na apresentação de XP/h por conta do Launcher Alt, o painel agora
+mostra médias do treinador por **aba e janela Chrome**, com três períodos:
+5, 15 e 60 minutos. Cada período só aparece quando há pelo menos 80% de sua
+duração coberta por amostras numéricas válidas da mesma barra e do mesmo nível.
+Intervalos sem dados confiáveis, leituras incompatíveis, queda de XP ou mudança
+de nível encerram a série e removem taxas que não podem ser verificadas.
+
+As séries ficam apenas em memória e são limitadas a 60 minutos e 1.024
+amostras por aba. Sem autenticação da identidade do treinador no payload,
+**o perfil/aba não é prova de conta**. Portanto as médias não são ainda uma
+medida certificada por conta/hunt e não podem autorizar mudanças automáticas.
+O painel distingue explicitamente médias maduras de janelas pendentes.
+
+A auditoria também é exibida separadamente para todas as abas IO registradas,
+em vez de exibir apenas a primeira. O estado dos controles continua sendo
+somente leitura e não concede poder ao executor live.
