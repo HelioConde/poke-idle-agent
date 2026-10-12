@@ -20,6 +20,7 @@ jobs:
           python -m app.agent --steps 15 > /dev/null
           python -m app.lab examples/sessoes_demo.csv --json > /dev/null
           python -m app.decision examples/hunts_demo.csv > /dev/null
+          python -m app.world_capture_assistant --file examples/world_capture_demo.json > /dev/null
   windows-bat-check:
     runs-on: windows-latest
     steps:
@@ -40,6 +41,7 @@ jobs:
         shell: cmd
         run: |
           python -m unittest discover -s tests -v
+          python -m app.world_capture_assistant --file examples/world_capture_demo.json > NUL
           python -m app.browser_probe --help
           python -m app.tab_registry --help
           python -c "from app.win_capture import find_windows; print('Windows capturaveis:', find_windows('io'))"
