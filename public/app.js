@@ -94,6 +94,21 @@ async function loadWorldPokeGrid() {
       }
       container.appendChild(card);
     }
+    for (const ranking of report.rankings || []) {
+      const best=ranking.hunts?.[0];
+      if (!best) continue;
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const heading=document.createElement('strong');
+      heading.textContent='Melhor hunt medida · '+ranking.account_id+' · '+ranking.pokemon_id;
+      card.appendChild(heading);
+      const summary=document.createElement('p');
+      summary.textContent=best.hunt_id+' · objetivo: '+ranking.priority+
+        ' · pontuação relativa: '+best.score.toLocaleString('pt-BR')+
+        '. Recomendação offline, sem comando para o jogo.';
+      card.appendChild(summary);
+      container.appendChild(card);
+    }
   } catch (error) {
     status.textContent='Relatório manual não pôde ser carregado: '+error.message;
   }
