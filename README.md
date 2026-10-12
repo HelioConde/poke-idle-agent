@@ -85,6 +85,27 @@ prévia da administração para terceiros. Este módulo não se conecta ao jogo.
 Não misturamos gold/diamantes World com Gems/USDT do IO.
 
 Guia: [Integração PokeGrid offline](docs/POKEGRID_OFFLINE_INTEGRATION.md).
+## Capturas para contas World sem VIP (offline)
+
+Inspirado no projeto [PollitoScripts/Poke-Idle-World-Auto-Catch](https://github.com/PollitoScripts/Poke-Idle-World-Auto-Catch),
+criamos um assistente **original e somente manual** para contas sem VIP.
+Ele escolhe a prioridade de Pokébolas por conta e tipo de encontro, protege
+reservas para shiny, contabiliza tentativas anotadas e recomenda o Auto-Catch
+oficial apenas quando a conta informa VIP.
+
+    py -3 -m app.world_capture_assistant --file examples/world_capture_demo.json
+    py -3 dashboard.py --world-capture examples/world_capture_demo.json
+
+Os exemplos são fictícios. Para suas contas, use arquivos locais em data/
+(nunca envie dados privados ao GitHub). O painel mostra cada conta separada.
+
+**Não instalamos o Tampermonkey nem copiamos o Auto-Catch do PollitoScripts.**
+O repositório externo não possui licença explícita; além disso, o Poke Idle
+World proíbe autoclickers e extensões sem autorização da equipe. O nosso
+módulo não opera o jogo, nem substitui o recurso VIP.
+
+Guia: [Captura manual sem VIP](docs/WORLD_CAPTURE_NONVIP.md).
+
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,

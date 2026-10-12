@@ -61,6 +61,39 @@ class DashboardFinanceTests(unittest.TestCase):
         self.assertEqual(payload["report"]["groups"][0]["status"],"measured")
         self.assertIsNone(payload["report"]["revenue_usdt"])
 
+    def _get_capture_report(self, process: subprocess.Popen, port: int) -> dict:
+        for _ in range(30):
+            if process.poll() is not None:
+                self.fail(process.stderr.read())
+            try:
+                with urlopen(f"http://127.0.0.1:{port}/api/world-capture",timeout=1) as response:
+                    return json.loads(response.read())
+            except OSError:
+                time.sleep(.05)
+        self.fail("Painel não iniciou")
+
+    def test_nonvip_capture_endpoint_disabled_without_file(self):
+        process=self._server(18771)
+        try:
+            response=self._get_capture_report(process,18771)
+        finally:
+            self._stop(process)
+        self.assertFalse(response["configured"])
+
+    def test_nonvip_capture_example_never_executes_gameplay(self):
+        fixture=ROOT/"examples"/"world_capture_demo.json"
+        process=self._server(18772,"--world-capture",str(fixture))
+        try:
+            response=self._get_capture_report(process,18772)
+        finally:
+            self._stop(process)
+        self.assertTrue(response["configured"])
+        self.assertTrue(response["report"]["is_demo"])
+        self.assertFalse(response["report"]["external_auto_catch_enabled"])
+        self.assertEqual(response["report"]["accounts"][0]["allowed_method"],"manual_throw")
+        self.assertEqual(response["report"]["accounts"][0]["recommended_ball"],"Poke Ball")
+        self.assertIsNone(response["report"]["usdt_revenue"])
+
     @staticmethod
     def _stop(process: subprocess.Popen) -> None:
         process.terminate()
