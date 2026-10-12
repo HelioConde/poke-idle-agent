@@ -6,6 +6,8 @@ Gems, anúncios e saques pendentes permanecem separados de USDT recebido.
 """
 from __future__ import annotations
 
+import argparse
+import json
 import sqlite3
 import time
 from contextlib import closing
@@ -142,3 +144,46 @@ class FinancialLedger:
             "proven_net_profit_usdt": round(confirmed_usdt - costs, 4),
             "real_revenue_confirmed": confirmed_usdt > 0,
         }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Livro-caixa local: não acessa jogo, carteira ou credenciais")
+    parser.add_argument("--ledger", type=Path, required=True)
+    commands = parser.add_subparsers(dest="command", required=True)
+    record = commands.add_parser("record", help="registrar fato manual/observado")
+    record.add_argument("--game", choices=("io", "world"), required=True)
+    record.add_argument("--profile", required=True, help="apelido local; nunca e-mail")
+    record.add_argument("--account", required=True, help="apelido local; nunca e-mail")
+    record.add_argument("--asset", required=True)
+    record.add_argument("--stage", choices=sorted(STAGES), required=True)
+    record.add_argument("--source", choices=sorted(SOURCES), default="manual")
+    record.add_argument("--gross-gems", type=float, default=0)
+    record.add_argument("--category", choices=("item", "pokemon"))
+    record.add_argument("--usdt-received", type=float, default=0)
+    record.add_argument("--operating-cost-usdt", type=float, default=0)
+    record.add_argument("--confirm-received", action="store_true",
+                        help="exigido somente após confirmar crédito na carteira")
+    summary = commands.add_parser("summary", help="ver resultado de uma conta")
+    summary.add_argument("--game", choices=("io", "world"), required=True)
+    summary.add_argument("--profile", required=True)
+    summary.add_argument("--account", required=True)
+    args = parser.parse_args()
+    ledger = FinancialLedger(args.ledger)
+    if args.command == "record":
+        ledger.record(game=args.game, profile_id=args.profile, account_id=args.account,
+                      asset_name=args.asset, stage=args.stage, source=args.source,
+                      gross_gems=args.gross_gems, category=args.category,
+                      usdt_received=args.usdt_received,
+                      operating_cost_usdt=args.operating_cost_usdt,
+                      manual_confirmation=args.confirm_received)
+        output = ledger.summary(game=args.game, profile_id=args.profile,
+                                account_id=args.account)
+    else:
+        output = ledger.summary(game=args.game, profile_id=args.profile,
+                                account_id=args.account)
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

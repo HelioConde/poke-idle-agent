@@ -1,4 +1,7 @@
 import tempfile
+import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -53,6 +56,17 @@ class FinancialLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ledger.record(**self.identity, asset_name="Item", stage="listed", source="manual",
                                gross_gems=5, category="item")
+
+    def test_cli_records_sale_and_never_marks_it_as_usdt(self):
+        root = Path(__file__).resolve().parents[1]
+        ledger_path = Path(self.directory.name) / "cli.sqlite3"
+        command = [sys.executable, "-m", "app.financial_ledger", "--ledger", str(ledger_path),
+                   "record", "--game", "io", "--profile", "profile-a", "--account", "account-a",
+                   "--asset", "Item", "--stage", "sold", "--gross-gems", "100", "--category", "item"]
+        result = subprocess.run(command, cwd=root, capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+        self.assertEqual(data["completed_sale_net_gems"], 85)
+        self.assertEqual(data["confirmed_usdt_received"], 0)
 
 
 if __name__ == "__main__":

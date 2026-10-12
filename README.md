@@ -53,6 +53,15 @@ em `confirmed_usdt_received`; demos, anúncios, Gems e saques pendentes não.
 Para exibir uma conta já registrada no painel, sem modificar dados:
 
     py -3 dashboard.py --ledger data/financial.sqlite3 --finance-game io --finance-profile meu-perfil --finance-account minha-conta
+
+Registre manualmente uma venda concluída (o comando calcula a taxa, mas não
+anuncia nem vende nada):
+
+    py -3 -m app.financial_ledger --ledger data/financial.sqlite3 record --game io --profile meu-perfil --account minha-conta --asset "Item" --stage sold --gross-gems 100 --category item
+
+Consulte a conta com `py -3 -m app.financial_ledger --ledger data/financial.sqlite3 summary --game io --profile meu-perfil --account minha-conta`.
+O estágio `received` exige `--confirm-received` e só deve ser usado depois de
+confirmar manualmente o crédito; nunca informe chave privada ou seed phrase.
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
