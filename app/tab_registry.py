@@ -30,8 +30,10 @@ PAGE = """<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 body{max-width:1320px;padding:25px;margin:auto}h1{font-size:clamp(25px,4vw,40px)}
 p{color:#aebad0;line-height:1.6}.card{border:1px solid #354461;background:#15213a;
 border-radius:14px;padding:20px;margin:12px 0}small{color:#92a5c2}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:12px;text-align:left;
-border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
+.table-scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;min-width:1100px;font-size:13px}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #34445c}
+th{color:#b5c5e4;white-space:nowrap}td{overflow-wrap:break-word}
 .tag{background:#344569;border-radius:7px;padding:3px 8px;display:inline-block}
 </style>
 <h1>Abas dos jogos</h1>
@@ -39,10 +41,10 @@ border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
 numéricas do HUD. Não captura credenciais, screenshots ou executa ações.</p>
 <div class="card"><b id="summary">Aguardando extensão...</b>
 <p id="hint">Aguardando primeira sincronização da extensão.</p></div>
-<div class="card"><table><thead><tr><th>Perfil</th><th>Jogo</th>
+<div class="card"><div class="table-scroll"><table><thead><tr><th>Perfil</th><th>Jogo</th>
 <th>Aba</th><th>Ativa</th><th>Nível</th><th>XP/h</th><th>HP</th>
 <th>Coins</th><th>Gems</th><th>Diagnóstico</th><th>Decisão simulada</th><th>Atualizada</th></tr></thead>
-<tbody id="rows"><tr><td colspan="12">Aguardando...</td></tr></tbody></table>
+<tbody id="rows"><tr><td colspan="12">Aguardando...</td></tr></tbody></table></div>
 <p>XP/h só é calculado quando o DOM fornece duas amostras válidas no mesmo nível.
 O coletor não lê Canvas, inventário privado ou dados da sessão.</p></div>
 <script src="/app.js"></script>
@@ -87,6 +89,10 @@ try{
   if(row.game==='io'&&obs.status==='no_matches'){
     diagnostic+=' Canvas '+(obs.canvas||0)+', iframes '+(obs.iframes||0)+
       ', elementos '+(obs.candidates||0);
+  }
+  if(row.game==='io' && obs.xp_ambiguous===true){
+    diagnostic='XP ambíguo: '+obs.xp_candidates+
+      ' barras diferentes no DOM; nenhuma foi selecionada.';
   }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
