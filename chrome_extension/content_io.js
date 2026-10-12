@@ -207,30 +207,62 @@
         xp_reason:xpReason}};
   }
 
-  function controlSummary(root, selector, policy) {
+  // Referências independentes de launchers/Atlas do IO indicam os IDs abaixo.
+  // São SOMENTE pistas para leitura; devem ser confirmadas na versão atual do
+  // DOM antes de promover qualquer controle para execução.
+  function controlSummary(root, selector, policy, nativeToggle=false) {
     let node = null;
     try { node = root.querySelector(selector); } catch (_err) {}
-    return {selector, present:Boolean(node), enabled:Boolean(node && !node.disabled), policy};
+    const present = Boolean(node);
+    const enabled = Boolean(node && node.disabled !== true &&
+      node.getAttribute?.("aria-disabled") !== "true");
+    const report = {selector, present, enabled, policy};
+    if (nativeToggle) {
+      report.toggle_state = node && typeof node.checked === "boolean"
+        ? (node.checked ? "on" : "off") : "unknown";
+    }
+    return report;
+  }
+
+  function readMapState(root) {
+    let modal = null, mapBox = null;
+    try {
+      modal = root.querySelector("#modal");
+      mapBox = root.querySelector('#modal .modal-caixa[data-modal="mapa"]');
+    } catch (_err) {}
+    if (!modal) return "unknown";
+    if (!mapBox) return "closed";
+    const hidden = modal.hidden === true ||
+      modal.classList?.contains("hidden") === true ||
+      modal.getAttribute?.("aria-hidden") === "true" ||
+      modal.style?.display === "none" ||
+      mapBox.hidden === true ||
+      mapBox.classList?.contains("hidden") === true;
+    return hidden ? "closed" : "open";
   }
 
   function readAutomationAudit(root, path) {
-    // Inventário e Desistir têm IDs estáveis observados na interface real.
-    // "Mapa" não possuía ID/selector estável na inspeção; portanto é apenas
-    // reportado como não auditado e nunca pode virar alvo de ação por texto.
     const onApp = path === "/app" || path.startsWith("/app/");
-    if (!onApp) return {route:"not_app", farm_state:"unknown", controls:{}};
+    if (!onApp) return {route:"not_app", farm_state:"unknown",
+                        map_state:"unknown", controls:{}};
     let panel = null;
     try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
     const panelText = typeof panel?.textContent === "string" ? panel.textContent : "";
     const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
     return {
-      route:"app", farm_state:farming,
+      route:"app", farm_state:farming, map_state:readMapState(root),
       controls:{
         trainer_panel:controlSummary(root,".tr-dados","read_only"),
         active_pokemon_panel:controlSummary(root,".ativo-info","read_only"),
         inventory:controlSummary(root,"#btn-bolsa","read_only"),
         surrender:controlSummary(root,"#eco-desistir","permanently_blocked"),
-        hunt_map:{selector:null,present:false,enabled:false,policy:"not_audited"}
+        hunt_map:controlSummary(root,'button[data-modal="mapa"]',"read_only"),
+        map_dialog:controlSummary(root,'#modal .modal-caixa[data-modal="mapa"]',"read_only"),
+        native_capture_until:controlSummary(root,"#auto-ball-captura","read_only",true),
+        native_capture_repeat:controlSummary(root,"#auto-ball-sem-parar","read_only",true),
+        native_revive:controlSummary(root,"#auto-revive","read_only",true),
+        native_potion:controlSummary(root,"#auto-potion","read_only",true),
+        native_return_hunt:controlSummary(root,"#auto-voltar-hunt","read_only",true)
       }
     };
   }
