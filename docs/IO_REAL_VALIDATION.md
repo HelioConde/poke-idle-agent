@@ -32,6 +32,20 @@ Data: 2026-10-12 (sessão Chrome autenticada, leitura somente).
 - O Market e a evolução foram identificados como superfícies disponíveis, mas
   não foram abertos nesta sessão, para evitar efeitos não solicitados.
 
+## Tentativa real de seleção — interrompida com segurança
+
+Em 2026-10-12 o titular autorizou o teste inicial. A observação prévia
+confirmou farm ativo. O único controle oficial localizado para interrompê-lo,
+`Desistir`, exibiu antes da confirmação que ele derrotaria a equipe, levaria
+o Pokémon ao Centro e descontaria **517 XP** (10% do nível do treinador).
+Essa consequência não correspondia a uma simples parada de farm. O diálogo
+foi cancelado e a telemetria posterior continuou mostrando `caçando`.
+
+Resultado: **nenhuma hunt foi alterada, nenhum XP foi perdido e o teste não
+foi marcado como sucesso**. O mapa permaneceu aberto, e o DOM também expôs
+o analisador da hunt atualmente inspecionada (Graveler), com estimativas e
+drops; isso não foi tratado como confirmação de uma troca.
+
 ## Catálogo de ação — situação atual
 
 | Ação | Interface identificada | Executor | Validação real |
