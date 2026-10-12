@@ -7,6 +7,8 @@
 - Diagnóstico de rota, DOM, Canvas e iframe sem copiar HTML, credenciais ou dados de login.
 - Normalização conservadora de HUD IO e XP/h apenas entre amostras válidas.
 - Memória SQLite local de observações normalizadas e decisões dry-run, separada por perfil/sessão.
+- Livro-caixa SQLite por jogo, perfil e conta; distingue ativo obtido, anúncio,
+  venda concluída, saque solicitado e USDT manualmente confirmado.
 - Métricas de farm por deltas observados; valores ausentes não são estimados.
 - Decisões explicáveis em dry-run e executor com pausa, limite e parada de emergência.
 - Simulador local de observe → plan → act → verify.

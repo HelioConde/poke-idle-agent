@@ -45,6 +45,11 @@ comparáveis, sem dados `demo`:
 O planejador só recomenda revisar uma oportunidade depois que o motor econômico
 validar no mínimo três vendas comparáveis. Essa recomendação é dry-run: não
 cria anúncios, não compra e não solicita saque.
+
+O módulo `app.financial_ledger.FinancialLedger` mantém em SQLite local, por
+conta, os estados `acquired`, `listed`, `sold`, `withdrawal_requested` e
+`received`. Apenas `received`, registrado manualmente após confirmação, entra
+em `confirmed_usdt_received`; demos, anúncios, Gems e saques pendentes não.
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
