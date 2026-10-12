@@ -49,9 +49,11 @@ class FarmPlannerTests(unittest.TestCase):
         p=plan_farm(self.account,state("h2"),self.rows,"request-2","xp")
         self.assertEqual(p.action.target_id,"h1")
 
-    def test_stop_farm_before_changing_hunt(self):
+    def test_farm_active_does_not_propose_lossy_desistir(self):
         p=plan_farm(self.account,state(farming=True),self.rows,"request-3","resources")
-        self.assertEqual(p.action.kind,"stop_farm")
+        self.assertEqual(p.status,"blocked")
+        self.assertIsNone(p.action)
+        self.assertIn("Desistir", p.reason)
         self.assertEqual(p.evidence["recommended_hunt_id"],"h2")
 
     def test_start_on_best_hunt(self):
@@ -95,7 +97,26 @@ class FarmPlannerTests(unittest.TestCase):
                                                   {"id":"h2","label":"B","unlocked":True}]
         })
         p=plan_farm(self.account,state(farming=True),self.rows,"req-low-hp")
-        self.assertEqual(p.action.kind,"stop_farm")
+        self.assertEqual(p.status,"blocked")
+        self.assertIsNone(p.action)
+        self.assertIn("Desistir", p.reason)
+
+    def test_center_pokemon_blocks_all_hunt_planning(self):
+        context=ObservedIO("io","demo","demo",hunt_id="h1",
+                           farming=True,scene="pokemon_center",
+                           team_defeated=True,session_farming=True,
+                           trainer_xp=4949)
+        p=plan_farm(self.account,context,self.rows,"req-center")
+        self.assertEqual(p.status,"blocked")
+        self.assertIsNone(p.action)
+
+    def test_conflicting_session_status_blocks_change(self):
+        context=ObservedIO("io","demo","demo",hunt_id="h1",
+                           farming=False,scene="hunt",
+                           team_defeated=False,session_farming=True)
+        p=plan_farm(self.account,context,self.rows,"req-conflict")
+        self.assertEqual(p.status,"blocked")
+        self.assertIsNone(p.action)
 
     def test_unknown_farm_state_never_acts(self):
         p=plan_farm(self.account,state(hunt="h2",farming=None),self.rows,"req-none","resources")

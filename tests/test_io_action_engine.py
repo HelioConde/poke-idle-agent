@@ -195,10 +195,19 @@ class LiveGateTests(unittest.TestCase):
         is_simulation=False
         verified_actions=frozenset({"start_farm"})
         def __init__(self):
-            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=False)
-        def observe(self): return self.state
+            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=False,
+                                  scene="hunt",team_defeated=False,
+                                  session_farming=False,trainer_xp=5490)
+        def observe(self):
+            from dataclasses import replace
+            from time import time
+            self._observations = getattr(self, "_observations", 0) + 1
+            stamp = time() - 3 if self._observations == 1 else time()
+            return replace(self.state, observed_at=stamp)
         def perform(self,request):
-            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=True)
+            self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=True,
+                                  scene="hunt",team_defeated=False,
+                                  session_farming=True,trainer_xp=5490)
 
     def test_no_action_without_specific_human_approval(self):
         adapter=self.ValidatedAdapter()

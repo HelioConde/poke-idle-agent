@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 import json
+import math
 import os
 import secrets
 import time
@@ -117,10 +118,53 @@ class ObservedIO:
     pokemon_species: dict[str, str] = field(default_factory=dict)
     listings: dict[str, int] = field(default_factory=dict)
     gems_balance: int | None = None
+    # Sinais independentes e opcionais. Ausência NÃO significa que a hunt parou.
+    scene: str | None = None  # 'hunt' ou 'pokemon_center'
+    team_defeated: bool | None = None
+    session_farming: bool | None = None  # painel de sessão; pode estar defasado
+    trainer_xp: int | None = None
+    observed_at: float | None = None  # relógio UTC, coletado no momento da leitura
 
     @property
     def account_key(self):
         return self.game, self.profile_id, self.account_id
+
+
+def reconcile_farm_state(readings: list[ObservedIO]) -> dict:
+    """Dois snapshots concordantes, sem derrota, Centro ou queda de XP.
+
+    Apenas leitura; não corrige discrepâncias alterando valores do HUD.
+    """
+    if len(readings) < 2:
+        return {"status": "unknown", "reason": "Exigir duas observações independentes"}
+    first, latest = readings[-2:]
+    if first.account_key != latest.account_key:
+        return {"status": "inconsistent", "reason": "Conta/perfil mudou"}
+    for item in (first, latest):
+        if item.scene == "pokemon_center" or item.team_defeated is True:
+            return {"status": "recovery_required",
+                    "reason": "Centro Pokémon ou equipe derrotada; farm indisponível"}
+        if (item.session_farming is not None and item.farming is not None and
+                item.session_farming != item.farming):
+            return {"status": "inconsistent", "reason": "HUD e painel de sessão discordam"}
+    if (first.trainer_xp is not None and latest.trainer_xp is not None and
+            latest.trainer_xp < first.trainer_xp):
+        return {"status": "xp_loss", "reason": "Perda de XP observada entre leituras"}
+    for item in (first, latest):
+        if (item.scene != "hunt" or item.team_defeated is not False or
+                item.farming is None or not item.hunt_id or
+                item.trainer_xp is None):
+            return {"status": "unknown", "reason": "HUD/scene/hunt/XP não suficientemente observados"}
+    if first.hunt_id != latest.hunt_id or first.farming != latest.farming:
+        return {"status": "transition", "reason": "Estado mudou durante observação"}
+    stamps = (first.observed_at, latest.observed_at)
+    if (any(type(t) not in (float, int) or not math.isfinite(t) for t in stamps) or
+            not 2 <= latest.observed_at - first.observed_at <= 60 or
+            abs(time.time() - latest.observed_at) > 30):
+        return {"status": "unknown",
+                "reason": "Exigir duas leituras reais recentes, separadas por 2–60 segundos"}
+    return {"status": "active_stable" if latest.farming else "stopped_stable",
+            "reason": "Duas observações recentes e independentes, sem perda de XP ou derrota"}
 
 
 class IOAdapter(Protocol):
@@ -230,12 +274,21 @@ class Engine:
             return self._log(req, "blocked", "Simulação exige adaptador fictício")
         if mode == "live" and adapter.is_simulation:
             return self._log(req, "blocked", "Adaptador fictício não opera contas reais")
+        if mode == "live" and req.kind == "stop_farm":
+            return self._log(req, "blocked",
+                             "Desistir causa derrota e perda de XP; sem parada segura validada")
         if req.kind not in adapter.verified_actions:
             return self._log(req, "blocked", "Ação não validada no adaptador")
         try:
             before = adapter.observe()
             if before.account_key != req.account_key:
                 return self._log(req, "blocked", "Conta/perfil observados não correspondem")
+            if mode == "live" and req.kind in {"select_hunt", "start_farm"}:
+                second = adapter.observe()
+                reconciled = reconcile_farm_state([before, second])
+                if reconciled["status"] != "stopped_stable":
+                    return self._log(req, "blocked", "Estado não estável: " + reconciled["reason"])
+                before = second
             precondition = check_precondition(req, before)
             if precondition:
                 return self._log(req, "blocked", precondition)
@@ -246,6 +299,14 @@ class Engine:
             if after.account_key != req.account_key:
                 self.emergency_stop()
                 return self._log(req, "uncertain", "Conta mudou durante execução: parada de emergência")
+            if (after.team_defeated is True or after.scene == "pokemon_center" or
+                    (before.trainer_xp is not None and after.trainer_xp is not None and
+                     after.trainer_xp < before.trainer_xp) or
+                    (after.session_farming is not None and after.farming is not None and
+                     after.session_farming != after.farming)):
+                self.emergency_stop()
+                return self._log(req, "uncertain",
+                                 "Derrota/Centro/perda de XP/estado divergente: parada de emergência")
             if not verify_transition(req, before, after):
                 self.emergency_stop()
                 return self._log(req, "uncertain", "Resultado não verificado: parada de emergência")
@@ -263,6 +324,11 @@ def check_precondition(req: ActionRequest, state: ObservedIO) -> str | None:
     """Nunca realizar ações em estado desconhecido ou incompatível."""
     if state.game != "io" or state.account_key != req.account_key:
         return "Conta incompatível"
+    if state.scene == "pokemon_center" or state.team_defeated is True:
+        return "Equipe no Centro/derrotada; recuperação manual necessária"
+    if (state.session_farming is not None and state.farming is not None and
+            state.session_farming != state.farming):
+        return "Painel de sessão e HUD discordam"
     if req.kind == "select_hunt":
         if state.farming is not False:
             return "Pare o farm e confirme o estado antes de trocar a hunt"
@@ -295,7 +361,10 @@ def verify_transition(req: ActionRequest, before: ObservedIO, after: ObservedIO)
     if req.kind == "start_farm":
         return before.farming is False and after.farming is True
     if req.kind == "stop_farm":
-        return before.farming is True and after.farming is False
+        return (before.farming is True and after.farming is False and
+                after.team_defeated is not True and after.scene != "pokemon_center" and
+                not (before.trainer_xp is not None and after.trainer_xp is not None and
+                     after.trainer_xp < before.trainer_xp))
     if req.kind == "evolve_pokemon":
         return (req.target_id in before.pokemon_species and
                 req.target_id in after.pokemon_species and

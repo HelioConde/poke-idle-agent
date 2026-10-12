@@ -99,6 +99,13 @@ def plan_farm(account: Account, state: ObservedIO, measurements: list[Measuremen
     Objetivo financeiro requer integração de vendas reais (market_data_required).
     """
     _check_io(account,state)
+    if state.scene == "pokemon_center" or state.team_defeated is True:
+        return Proposed("blocked",
+                        "Equipe derrotada/no Centro Pokémon; recuperar manualmente antes de qualquer hunt")
+    if (state.session_farming is not None and state.farming is not None and
+            state.session_farming != state.farming):
+        return Proposed("blocked",
+                        "Painel de sessão e HUD discordam; aguardar observações estáveis, sem comandos")
     if account.active_pokemon_id is None:
         return Proposed("need_data", "Selecione o Pokémon ativo; não assumir espécie")
     selected = next((p for p in account.roster if p.id == account.active_pokemon_id), None)
@@ -107,8 +114,8 @@ def plan_farm(account: Account, state: ObservedIO, measurements: list[Measuremen
     if selected.max_hp is not None and selected.hp is not None:
         if selected.hp / selected.max_hp < 0.25:
             if state.farming:
-                return Proposed("proposed", "HP abaixo de 25%; propor parada segura",
-                                _make(account, "stop_farm", request_id))
+                return Proposed("blocked",
+                                "HP crítico e farm ativo: 'Desistir' não é pausa segura; requer recuperação manual")
             return Proposed("blocked", "HP crítico: verifique recuperação antes de farmar")
     ranking = rank_hunts(account, measurements, goal)
     if ranking["status"] != "ranked":
@@ -117,10 +124,12 @@ def plan_farm(account: Account, state: ObservedIO, measurements: list[Measuremen
     best = ranking["ranked"][0]
     selected_id = best["hunt_id"]
     if state.hunt_id != selected_id:
-        if state.farming:
-            return Proposed("proposed", "Parar farm antes de mudar de hunt",
-                            _make(account,"stop_farm",request_id),
+        if state.farming is True:
+            return Proposed("blocked",
+                            "Farm ativo: não usar 'Desistir'; aguardar meio de parada sem derrota/XP perdido",
                             evidence={"recommended_hunt_id":selected_id, "ranking":ranking["ranked"]})
+        if state.farming is None:
+            return Proposed("need_data", "Farm desconhecido: não mudar de hunt")
         return Proposed("proposed", "Hunt de melhor desempenho medido para a meta escolhida",
                         _make(account, "select_hunt", request_id,selected_id),
                         evidence={"recommended_hunt_id":selected_id,"ranking":ranking["ranked"]})
