@@ -50,6 +50,9 @@ O módulo `app.financial_ledger.FinancialLedger` mantém em SQLite local, por
 conta, os estados `acquired`, `listed`, `sold`, `withdrawal_requested` e
 `received`. Apenas `received`, registrado manualmente após confirmação, entra
 em `confirmed_usdt_received`; demos, anúncios, Gems e saques pendentes não.
+Para exibir uma conta já registrada no painel, sem modificar dados:
+
+    py -3 dashboard.py --ledger data/financial.sqlite3 --finance-game io --finance-profile meu-perfil --finance-account minha-conta
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,

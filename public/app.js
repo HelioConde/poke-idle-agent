@@ -23,4 +23,30 @@ async function boot() {
     status.textContent = 'Não foi possível carregar os dados: ' + error.message;
   }
 }
+async function loadFinance() {
+  const status = document.getElementById('finance-banner');
+  try {
+    const response = await fetch('/api/finance', {cache:'no-store'});
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const payload = await response.json();
+    if (!payload.configured) {
+      status.textContent = 'Sem conta financeira configurada. ' + payload.reason;
+      return;
+    }
+    const summary = payload.summary;
+    document.querySelectorAll('[data-finance]').forEach(el => {
+      const field = el.dataset.finance;
+      const value = summary[field];
+      el.textContent = field.includes('usdt')
+        ? Number(value).toLocaleString('pt-BR',{style:'currency',currency:'USD'})
+        : Number(value).toLocaleString('pt-BR',{maximumFractionDigits:2});
+    });
+    status.textContent = summary.real_revenue_confirmed
+      ? 'Recebimento informado manualmente; confira a origem antes de tratar como resultado final.'
+      : 'Nenhum USDT confirmado nesta conta. Gems, anúncios e saques pendentes permanecem fora da receita real.';
+  } catch (error) {
+    status.textContent = 'Não foi possível carregar o livro-caixa: ' + error.message;
+  }
+}
 boot();
+loadFinance();
