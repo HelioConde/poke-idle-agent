@@ -85,8 +85,8 @@ class IntegrationTests(unittest.TestCase):
     def url(self, path):
         return f"http://127.0.0.1:{self.port}{path}"
 
-    def get(self, path):
-        with urlopen(self.url(path), timeout=2) as res:
+    def get(self, path, timeout=2):
+        with urlopen(self.url(path), timeout=timeout) as res:
             return json.loads(res.read())
 
     def test_single_server_exposes_all_safe_modules(self):
@@ -117,14 +117,24 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('id="world-ivs-results"', html)
         self.assertIn("Telemetria IO pela extensão, somente leitura", html)
         self.assertNotIn("Capturas passivas com Playwright", html)
+        script = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("XP treinador:", script)
+        self.assertIn("origem: treinador confirmada", script)
         with urlopen(self.url("/monitor"), timeout=2) as res:
             monitor = res.read().decode("utf-8")
         self.assertIn("/monitor/registry.js", monitor)
+        self.assertIn("XP atual/máx.", monitor)
+        self.assertIn("table-scroll", monitor)
         with urlopen(self.url("/monitor/registry.js"), timeout=2) as res:
-            self.assertIn("/api/tabs", res.read().decode("utf-8"))
+            registry_js = res.read().decode("utf-8")
+        self.assertIn("/api/tabs", registry_js)
+        self.assertIn("Bloqueado: leitor desatualizado", registry_js)
+        self.assertIn("Nenhuma sincronização recebida", registry_js)
 
     def test_iv_optional_node_runs_in_same_dashboard(self):
-        ivs = self.get("/api/world-ivs")
+        # A primeira execução do Node no runner Linux pode exceder dois
+        # segundos; a integração ainda precisa falhar em prazo finito.
+        ivs = self.get("/api/world-ivs", timeout=6)
         if shutil.which("node"):
             self.assertTrue(ivs["configured"])
             self.assertEqual(ivs["report"]["source"], "demo")

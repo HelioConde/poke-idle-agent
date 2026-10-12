@@ -201,11 +201,19 @@ O painel exibe uma sugestão de ação em **dry-run**, que nunca clica no jogo.
 
 1. Pare o monitor no terminal com Ctrl+C.
 2. Rode git pull origin main.
-3. Abra chrome://extensions e clique em **Recarregar** na extensão Idle Game Agent.
+3. Abra chrome://extensions e clique em **Recarregar** na extensão Idle Game Agent (versão 0.2.2).
 4. Dê F5 na aba aberta do Poke Idle IO, após salvar seu jogo.
-5. Rode .\OBSERVAR-IO-CHROME.bat no PowerShell.
-6. Abra http://127.0.0.1:8768 e aguarde a primeira leitura (até 30s).
-7. Observe as novas colunas Nível, XP/h, HP e Decisão simulada.
+5. Abra o popup da extensão e use **Testar conexão**; depois use **Sincronizar agora**. O popup informa, sem expor a chave, se falta emparelhamento, se a chave foi rejeitada, se o servidor local está inacessível ou se a sincronização foi confirmada.
+6. Rode .\OBSERVAR-IO-CHROME.bat no PowerShell.
+7. Abra http://127.0.0.1:8768 e aguarde a primeira leitura (até 30s).
+8. Observe as novas colunas Nível, XP/h, HP e Decisão simulada.
+
+O diagnóstico também informa o protocolo da leitura. **Leitor desatualizado**
+significa que o service worker instalado ainda não envia o protocolo 2; recarregue
+a extensão e então a aba `/app`. **Content script desatualizado** significa que
+o service worker foi recarregado, mas a página ainda usa o script antigo: recarregue
+somente a aba `/app`. Até ambas as versões responderem, o servidor remove XP do
+treinador e não calcula XP/h — não há valor estimado ou inventado.
 
 **Se os dados não aparecerem:** isso NÃO prova defeito de login nem que a
 IA esteja jogando. O jogo pode desenhar seu HUD no Canvas, ou usar marcações

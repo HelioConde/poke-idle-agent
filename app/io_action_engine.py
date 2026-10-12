@@ -5,7 +5,7 @@ Nenhum socket/HTTP/browser é usado aqui. World não é executável.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from hashlib import sha256
 import json
 import math
@@ -405,9 +405,11 @@ class FakeIOAdapter:
 
     def observe(self) -> ObservedIO:
         s = self.state
-        return ObservedIO(s.game,s.profile_id,s.account_id,s.hunt_id,s.farming,
-                          dict(s.inventory),dict(s.pokemon_species),dict(s.listings),
-                          s.gems_balance)
+        # Preserve optional consistency signals too. The fake adapter is used
+        # to exercise the same fail-closed checks as a future real adapter.
+        return replace(s, inventory=dict(s.inventory),
+                       pokemon_species=dict(s.pokemon_species),
+                       listings=dict(s.listings))
 
     def perform(self, req: ActionRequest):
         s = self.state

@@ -1,135 +1,22 @@
-/* Detecta abas pelos endereços autorizados, sem ler conteúdo do jogo. */
+/* Detecta abas autorizadas, sem ler credenciais ou agir no jogo. */
 "use strict";
-const ENDPOINT = "http://127.0.0.1:8768/api/sync";
+const ENDPOINT="http://127.0.0.1:8768/api/sync", STATUS_ENDPOINT="http://127.0.0.1:8768/api/unified/status";
+const TELEMETRY_PROTOCOL_VERSION=2, DOM_READER_VERSION="trainer-xp-scoped-v1", SYNC_TIMEOUT_MS=5000, MAX_RETRIES=3;
+const RETRY_MINUTES=[0.5,1,2];
 
-function classifyGame(address) {
-  if (typeof address !== "string") return null;
-  try {
-    const url = new URL(address);
-    if (url.protocol !== "https:") return null;
-    if (url.hostname === "pokeidle.io" || url.hostname === "www.pokeidle.io") return "io";
-    if (url.hostname === "poke.idleworld.online") return "world";
-  } catch (_err) {}
-  return null;
-}
+function classifyGame(address){if(typeof address!=="string")return null;try{const u=new URL(address);if(u.protocol!=="https:")return null;if(u.hostname==="pokeidle.io"||u.hostname==="www.pokeidle.io")return"io";if(u.hostname==="poke.idleworld.online")return"world";}catch(_e){}return null;}
+function routeOfIo(address){try{const p=new URL(address).pathname;if(p==="/app"||p.startsWith("/app/"))return"app";if(p==="/")return"landing";}catch(_e){}return"other";}
+function safeTab(tab){const game=classifyGame(tab.url||tab.pendingUrl);if(!game||!Number.isInteger(tab.id)||!Number.isInteger(tab.windowId))return null;return{game,tab_id:tab.id,window_id:tab.windowId,...(game==="io"?{route:routeOfIo(tab.url||tab.pendingUrl)}:{}),title:(typeof tab.title==="string"?tab.title:game==="io"?"Poke Idle IO":"Poke Idle World").slice(0,120),active:tab.active===true};}
+function classifyFailure(status,error){if(status===401||status===403)return"pairing_rejected";if(error&&/abort|timeout/i.test(String(error)))return"sync_timeout";if(error&&/network|fetch|failed to fetch/i.test(String(error)))return"server_unreachable";return"sync_failed";}
+function readerStatus(tabs){const io=tabs.find(t=>t.game==="io");if(!io)return"no_matching_tabs";if(io.observation?.content_state==="outdated")return"reader_outdated";if(io.observation?.content_state==="unavailable")return"reader_unavailable";return io.observation?.xp_trainer_scoped===true?"trainer_xp_confirmed":"reader_pending";}
+async function readProfile(api){let state=await api.storage.local.get(["profile_id","profile_label","pairing_token"]);if(!state.profile_id){state.profile_id=crypto.randomUUID();await api.storage.local.set({profile_id:state.profile_id});}return state;}
+async function observeTab(tab,api){const item=safeTab(tab);if(!item||item.game!=="io")return item;const diagnostic=(status,xp_reason,content_state,extra={})=>({status,canvas:0,iframes:0,candidates:0,xp_candidates:0,xp_ambiguous:false,xp_trainer_scoped:false,xp_reason,telemetry_protocol:TELEMETRY_PROTOCOL_VERSION,reader_version:"unknown",content_state,...extra});if(item.route!=="app"){item.observation=diagnostic(item.route==="landing"?"landing":"other_route","not_on_app","not_app");return item;}item.observation=diagnostic("reader_unavailable","reader_unavailable","unavailable");try{const reading=await api.tabs.sendMessage(tab.id,{type:"IGA_READ_IO_DOM"});if(reading&&reading.source==="dom"&&reading.stats&&typeof reading.stats==="object"&&!Array.isArray(reading.stats)){item.telemetry={source:"dom",stats:reading.stats};const d=reading.diagnostic||{},bounded=(n,max)=>Number.isInteger(n)?Math.max(0,Math.min(max,n)):0,readerVersion=reading.reader_version===DOM_READER_VERSION?DOM_READER_VERSION:"unknown";item.observation={status:reading.available?"metrics":"no_matches",canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),candidates:bounded(d.candidates,3500),xp_candidates:bounded(d.xp_candidates,20),xp_ambiguous:d.xp_ambiguous===true,xp_trainer_scoped:d.xp_trainer_scoped===true,xp_reason:typeof d.xp_reason==="string"?d.xp_reason.slice(0,48):"unknown",telemetry_protocol:TELEMETRY_PROTOCOL_VERSION,reader_version:readerVersion,content_state:readerVersion===DOM_READER_VERSION?"responded":"outdated"};}}catch(_e){}return item;}
+async function saveDiagnostic(api,patch){await api.storage.local.set(patch);}
+function scheduleRetry(api,retryCount,now){if(retryCount>=MAX_RETRIES)return false;const minutes=RETRY_MINUTES[retryCount]||RETRY_MINUTES.at(-1);api.alarms.create("tab-sync-retry",{when:now+minutes*60000});return true;}
 
-
-function routeOfIo(address) {
-  try {
-    const path = new URL(address).pathname;
-    if (path === "/app" || path.startsWith("/app/")) return "app";
-    if (path === "/") return "landing";
-  } catch (_error) {}
-  return "other";
-}
-
-function safeTab(tab) {
-  const game = classifyGame(tab.url || tab.pendingUrl);
-  if (!game || !Number.isInteger(tab.id) || !Number.isInteger(tab.windowId)) return null;
-  return {
-    game, tab_id: tab.id, window_id: tab.windowId,
-    ...(game==="io" ? {route:routeOfIo(tab.url || tab.pendingUrl)} : {}),
-    title: (typeof tab.title === "string" ? tab.title : game === "io" ? "Poke Idle IO" : "Poke Idle World").slice(0, 120),
-    active: tab.active === true
-  };
-}
-
-async function readProfile() {
-  let state = await chrome.storage.local.get(["profile_id", "profile_label", "pairing_token"]);
-  if (!state.profile_id) {
-    state.profile_id = crypto.randomUUID();
-    await chrome.storage.local.set({ profile_id: state.profile_id });
-  }
-  return state;
-}
-// Captura por DOM somente em abas IO. O jogo World continua metadados-only.
-async function observeTab(tab) {
-  const item = safeTab(tab);
-  if (!item || item.game !== "io") return item;
-  const empty = {canvas:0,iframes:0,candidates:0};
-  if (item.route !== "app") {
-    item.observation = {...empty,status:item.route==="landing"?"landing":"other_route"};
-    return item;
-  }
-  item.observation = {...empty,status:"reader_unavailable"};
-  try {
-    const reading = await chrome.tabs.sendMessage(tab.id, {type:"IGA_READ_IO_DOM"});
-    if (reading && reading.source === "dom" && reading.stats &&
-        typeof reading.stats === "object" && !Array.isArray(reading.stats)) {
-      item.telemetry = {source:"dom",stats:reading.stats};
-      const d=reading.diagnostic||{};
-      const bounded = (n, max)=>Number.isInteger(n)?Math.max(0,Math.min(max,n)):0;
-      item.observation = {
-        status:reading.available?"metrics":"no_matches",
-        canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),
-        candidates:bounded(d.candidates,3500)
-      };
-    }
-  } catch (_ignored) {
-    // Script nao injetado, aba suspensa, nao ha leitura confiavel.
-  }
-  return item;
-}
-
-let inFlight = null;
-async function performScan() {
-  const state = await readProfile();
-  // Abas de outros sites nao expoem URL/titulo devido as permissoes restritas.
-  const found = await chrome.tabs.query({});
-  const tabs = (await Promise.all(found.slice(0, 80).map(observeTab))).filter(Boolean).slice(0, 40);
-  const result = { tabs, count: tabs.length, paired: Boolean(state.pairing_token) };
-  if (!state.pairing_token) {
-    await chrome.storage.local.set({
-      last_count: tabs.length, last_error: "Cole a chave do monitor no popup.", last_sync: 0
-    });
-    return result;
-  }
-  try {
-    const response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-IGA-Token": state.pairing_token },
-      body: JSON.stringify({
-        profile_id: state.profile_id,
-        profile_label: (state.profile_label || "Perfil Chrome").slice(0, 48),
-        tabs
-      })
-    });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    await chrome.storage.local.set({
-      last_count: tabs.length, last_sync: Date.now(), last_error: ""
-    });
-    return result;
-  } catch (error) {
-    await chrome.storage.local.set({
-      last_count: tabs.length, last_error: String(error.message || error).slice(0, 120)
-    });
-    return { ...result, error: String(error.message || error) };
-  }
-}
-function syncTabs() {
-  if (!inFlight) inFlight = performScan().finally(() => { inFlight = null; });
-  return inFlight;
-}
-function installHandlers() {
-  const ensureAlarm = () => chrome.alarms.create("tab-sync", { periodInMinutes: 0.5 });
-  chrome.runtime.onInstalled.addListener(() => { ensureAlarm(); syncTabs(); });
-  chrome.runtime.onStartup.addListener(() => { ensureAlarm(); syncTabs(); });
-  chrome.alarms.onAlarm.addListener(alarm => {
-    if (alarm.name === "tab-sync") syncTabs();
-  });
-  chrome.tabs.onUpdated.addListener(() => { syncTabs(); });
-  chrome.tabs.onActivated.addListener(() => { syncTabs(); });
-  chrome.tabs.onRemoved.addListener(() => { syncTabs(); });
-  chrome.tabs.onCreated.addListener(() => { syncTabs(); });
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message?.type !== "SYNC_TABS") return false;
-    syncTabs().then(sendResponse).catch(error => sendResponse({
-      count: 0, error: String(error.message || error)
-    }));
-    return true;
-  });
-  ensureAlarm();
-  syncTabs();
-}
-if (typeof chrome !== "undefined" && chrome.runtime?.id) installHandlers();
-if (typeof module !== "undefined") module.exports = { classifyGame, safeTab, routeOfIo };
+async function performScan(deps={}){const api=deps.api||chrome,fetchFn=deps.fetchFn||fetch,clock=deps.now||Date.now,endpoint=deps.endpoint||ENDPOINT,timeoutMs=deps.timeoutMs||SYNC_TIMEOUT_MS,state=await readProfile(api),found=await api.tabs.query({}),tabs=(await Promise.all(found.slice(0,80).map(t=>observeTab(t,api)))).filter(Boolean).slice(0,40),counts={io:tabs.filter(t=>t.game==="io").length,world:tabs.filter(t=>t.game==="world").length},attempt=clock(),base={last_attempt:attempt,last_count:tabs.length,last_io_count:counts.io,last_world_count:counts.world,last_reader_status:readerStatus(tabs)};if(!state.pairing_token){await saveDiagnostic(api,{...base,connection_code:"pairing_missing",last_error:"Chave local não configurada."});return{tabs,count:tabs.length,paired:false,code:"pairing_missing"};}const previous=await api.storage.local.get(["retry_count"]),controller=typeof AbortController==="undefined"?null:new AbortController(),timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;try{const response=await fetchFn(endpoint,{method:"POST",headers:{"Content-Type":"application/json","X-IGA-Token":state.pairing_token},body:JSON.stringify({profile_id:state.profile_id,profile_label:(state.profile_label||"Perfil Chrome").slice(0,48),tabs}),signal:controller?.signal});let body=null;try{body=await response.json();}catch(_e){}if(!response.ok){const code=classifyFailure(response.status);await saveDiagnostic(api,{...base,connection_code:code,last_http_status:response.status,last_error:code==="pairing_rejected"?"Chave local rejeitada; configure o emparelhamento manualmente.":"Servidor respondeu HTTP "+response.status,retry_count:code==="pairing_rejected"?0:(previous.retry_count||0)+1});if(code!=="pairing_rejected")scheduleRetry(api,previous.retry_count||0,attempt);return{tabs,count:tabs.length,paired:true,code,http_status:response.status};}if(!body||body.ok!==true||!Number.isInteger(body.tab_count)){await saveDiagnostic(api,{...base,connection_code:"sync_failed",last_error:"Resposta local inválida.",retry_count:(previous.retry_count||0)+1});scheduleRetry(api,previous.retry_count||0,attempt);return{tabs,count:tabs.length,paired:true,code:"sync_failed"};}const code=tabs.length?"sync_confirmed":"no_matching_tabs";await saveDiagnostic(api,{...base,connection_code:code,last_error:"",last_http_status:response.status,last_success:clock(),last_sync:clock(),retry_count:0,last_server_tab_count:body.tab_count});return{tabs,count:tabs.length,paired:true,code,http_status:response.status};}catch(error){const code=classifyFailure(null,error),retryCount=(previous.retry_count||0)+1;await saveDiagnostic(api,{...base,connection_code:code,last_error:code==="sync_timeout"?"Tempo esgotado ao contactar o servidor local.":"Servidor local indisponível.",retry_count:retryCount});scheduleRetry(api,previous.retry_count||0,attempt);return{tabs,count:tabs.length,paired:true,code};}finally{if(timer)clearTimeout(timer);}}
+async function testConnection(deps={}){const api=deps.api||chrome,fetchFn=deps.fetchFn||fetch;try{const response=await fetchFn(deps.statusEndpoint||STATUS_ENDPOINT,{cache:"no-store"}),data=await response.json(),ok=response.ok&&data?.app==="idle-game-agent"&&data?.mode==="unified";await saveDiagnostic(api,{last_connection_test:Date.now(),connection_test:ok?"server_reachable":"server_unreachable"});return{ok,code:ok?"server_reachable":"server_unreachable"};}catch(_e){await saveDiagnostic(api,{last_connection_test:Date.now(),connection_test:"server_unreachable"});return{ok:false,code:"server_unreachable"};}}
+let inFlight=null;function syncTabs(){if(!inFlight)inFlight=performScan().finally(()=>{inFlight=null;});return inFlight;}
+function installHandlers(){const ensure=()=>chrome.alarms.create("tab-sync",{periodInMinutes:0.5});chrome.runtime.onInstalled.addListener(()=>{ensure();syncTabs();});chrome.runtime.onStartup.addListener(()=>{ensure();syncTabs();});chrome.alarms.onAlarm.addListener(a=>{if(a.name==="tab-sync"||a.name==="tab-sync-retry")syncTabs();});chrome.tabs.onUpdated.addListener(syncTabs);chrome.tabs.onActivated.addListener(syncTabs);chrome.tabs.onRemoved.addListener(syncTabs);chrome.tabs.onCreated.addListener(syncTabs);chrome.runtime.onMessage.addListener((m,_s,respond)=>{if(m?.type==="SYNC_TABS"){syncTabs().then(respond).catch(()=>respond({code:"sync_failed"}));return true;}if(m?.type==="TEST_CONNECTION"){testConnection().then(respond);return true;}if(m?.type==="GET_DIAGNOSTICS"){chrome.storage.local.get(["connection_code","last_error","last_attempt","last_success","last_sync","last_count","last_io_count","last_world_count","last_reader_status","last_http_status","retry_count","last_connection_test","connection_test"]).then(respond);return true;}return false;});ensure();syncTabs();}
+if(typeof chrome!=="undefined"&&chrome.runtime?.id)installHandlers();
+if(typeof module!=="undefined")module.exports={TELEMETRY_PROTOCOL_VERSION,DOM_READER_VERSION,MAX_RETRIES,classifyGame,routeOfIo,safeTab,classifyFailure,readerStatus,performScan,testConnection};

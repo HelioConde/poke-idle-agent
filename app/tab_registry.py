@@ -30,8 +30,10 @@ PAGE = """<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 body{max-width:1320px;padding:25px;margin:auto}h1{font-size:clamp(25px,4vw,40px)}
 p{color:#aebad0;line-height:1.6}.card{border:1px solid #354461;background:#15213a;
 border-radius:14px;padding:20px;margin:12px 0}small{color:#92a5c2}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:12px;text-align:left;
-border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
+.table-scroll{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;min-width:1240px;font-size:13px}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #34445c}
+th{color:#b5c5e4;white-space:nowrap}td{overflow-wrap:break-word}
 .tag{background:#344569;border-radius:7px;padding:3px 8px;display:inline-block}
 </style>
 <h1>Abas dos jogos</h1>
@@ -39,10 +41,10 @@ border-bottom:1px solid #34445c;overflow-wrap:anywhere}th{color:#b5c5e4}
 numéricas do HUD. Não captura credenciais, screenshots ou executa ações.</p>
 <div class="card"><b id="summary">Aguardando extensão...</b>
 <p id="hint">Aguardando primeira sincronização da extensão.</p></div>
-<div class="card"><table><thead><tr><th>Perfil</th><th>Jogo</th>
-<th>Aba</th><th>Ativa</th><th>Nível</th><th>XP/h</th><th>HP</th>
+<div class="card"><div class="table-scroll"><table><thead><tr><th>Perfil</th><th>Jogo</th>
+<th>Aba</th><th>Ativa</th><th>Nível</th><th>XP atual/máx.</th><th>XP/h</th><th>HP</th>
 <th>Coins</th><th>Gems</th><th>Diagnóstico</th><th>Decisão simulada</th><th>Atualizada</th></tr></thead>
-<tbody id="rows"><tr><td colspan="12">Aguardando...</td></tr></tbody></table>
+<tbody id="rows"><tr><td colspan="13">Aguardando...</td></tr></tbody></table></div>
 <p>XP/h só é calculado quando o DOM fornece duas amostras válidas no mesmo nível.
 O coletor não lê Canvas, inventário privado ou dados da sessão.</p></div>
 <script src="/app.js"></script>
@@ -64,9 +66,9 @@ try{
    ? 'Extensão conectada e sincronizando. '+inactive+
      (inactive===1?' aba inativa detectada.':' abas inativas detectadas.')+
      ' Este painel mostra somente metadados; não captura imagens do jogo.'
-   : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
+   : 'Nenhuma sincronização recebida. Abra o popup da extensão para verificar emparelhamento e conexão local.';
  if(!data.tabs.length){const tr=document.createElement('tr');
- const td=document.createElement('td');td.colSpan=12;td.textContent='Nenhuma aba sincronizada.';
+ const td=document.createElement('td');td.colSpan=13;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
  for(const row of data.tabs){
   const tr=document.createElement('tr');
@@ -75,12 +77,17 @@ try{
   const hp=typeof stats.hp_current==='number'
     ?read(stats.hp_current)+(typeof stats.hp_max==='number'?'/'+read(stats.hp_max):''):'—';
   const obs=row.observation||{};
+  const legacy=obs.status==='legacy_protocol';
+  const xp=legacy?'Bloqueado: leitor desatualizado':(typeof stats.xp_current==='number'
+    ?read(stats.xp_current)+(typeof stats.xp_max==='number'?'/'+read(stats.xp_max):''):'Aguardando segunda amostra');
+  const rate=legacy?'Bloqueado: protocolo incompatível':read(row.xp_per_hour);
   const explanations={
     landing:"Página inicial. Clique em Jogar Grátis para entrar em /app.",
     other_route:"Fora de /app: confirme se abriu o jogo.",
     reader_unavailable:"Leitor não respondeu: recarregue extensão e aba /app.",
     no_matches:"DOM acessado, mas HUD ainda não reconhecido.",
-    metrics:"Leitura numérica disponível."
+    metrics:"Leitura numérica disponível.",
+    legacy_protocol:"Leitor desatualizado: recarregue a extensão 0.2.2 e a aba /app."
   };
   let diagnostic=row.game==='world'?'World: somente identificação de aba':
     (explanations[obs.status]||"Aguardando dados");
@@ -88,10 +95,29 @@ try{
     diagnostic+=' Canvas '+(obs.canvas||0)+', iframes '+(obs.iframes||0)+
       ', elementos '+(obs.candidates||0);
   }
+  if(row.game==='io' && obs.xp_ambiguous===true){
+    diagnostic='XP ambíguo: '+obs.xp_candidates+
+      ' barras diferentes no DOM; nenhuma foi selecionada.';
+  } else if(row.game==='io' && obs.xp_trainer_scoped===true) {
+    diagnostic='XP do treinador identificado em tr-dados; Pokémon separado.';
+  } else if(row.game==='io' && obs.xp_reason){
+    const reasons={
+      trainer_panel_missing:'Quadro tr-dados não localizado; XP/h bloqueado.',
+      trainer_level_missing:'Nível do treinador ausente no quadro; XP/h bloqueado.',
+      trainer_xp_missing:'Barra de XP do treinador ausente ou incompleta; XP/h bloqueado.',
+      trainer_xp_ambiguous:'Mais de uma barra no quadro do treinador; XP/h bloqueado.',
+      reader_unavailable:'Content script não respondeu; nenhuma métrica foi inventada.',
+      unknown:'Extensão sem diagnóstico de origem; recarregue a versão 0.2.2.'
+    };
+    diagnostic=reasons[obs.xp_reason]||diagnostic;
+  }
+  if(row.game==='io' && obs.content_state==='outdated'){
+    diagnostic='Content script desatualizado: recarregue a extensão e a aba /app.';
+  }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
   for(const value of [row.profile_label,row.game==='io'?'Poke Idle IO':'Poke Idle World',
-    row.title,row.active?'Sim':'Não',read(stats.level),read(row.xp_per_hour),
+    row.title,row.active?'Sim':'Não',read(stats.level),xp,rate,
     hp,read(stats.coins),read(stats.gems),diagnostic,advice,row.age_seconds+'s atrás']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);
@@ -154,7 +180,31 @@ class Registry:
                 if route is not None and route != "app" and tab["observation"].get("status") not in (
                         "landing", "other_route"):
                     raise ValueError("Diagnóstico não corresponde à rota IO")
-                entry["observation"] = sanitize_observation(tab["observation"])
+                observation = sanitize_observation(tab["observation"])
+                # Um diagnóstico parcial de versões anteriores tinha status=metrics,
+                # mas não carregava a prova de escopo nem o protocolo 2. Tratá-lo
+                # como leitura válida confundiria o painel; normalize explicitamente.
+                entry["observation"] = (observation if "telemetry_protocol" in observation else {
+                    "status": "legacy_protocol", "canvas": 0,
+                    "iframes": 0, "candidates": 0,
+                })
+            elif tab["game"] == "io":
+                # Protocolos anteriores não enviavam diagnóstico; mantemos a aba,
+                # mas rejeitamos seus valores de XP para cálculo de XP/h.
+                entry["observation"] = {"status": "legacy_protocol", "canvas": 0,
+                                        "iframes": 0, "candidates": 0}
+            if tab["game"] == "io" and "telemetry" in entry:
+                # Nao confiar em XP de extensoes antigas (ou barras do Pokemon).
+                # Somente a leitura comprovada em .tr-dados vale como XP do treinador.
+                observation = entry.get("observation", {})
+                scope_verified = (observation.get("xp_trainer_scoped") is True and
+                                  observation.get("telemetry_protocol") == 2 and
+                                  observation.get("reader_version") == "trainer-xp-scoped-v1" and
+                                  observation.get("content_state") == "responded")
+                if not scope_verified:
+                    entry["telemetry"]["stats"].pop("xp_current", None)
+                    entry["telemetry"]["stats"].pop("xp_max", None)
+                    entry["telemetry"]["available"] = bool(entry["telemetry"]["stats"])
             if tab["game"] != "io" and (
                     "telemetry" in tab or "observation" in tab):
                 raise ValueError("World não aceita telemetria de conta")
@@ -168,10 +218,16 @@ class Registry:
                 stats = (reading or {}).get("stats") or {}
                 key = (profile_id, tab["tab_id"])
                 last = self.samples.get(key)
+                observation = tab.get("observation", {})
+                scope_verified = (observation.get("xp_trainer_scoped") is True and
+                                  observation.get("telemetry_protocol") == 2 and
+                                  observation.get("reader_version") == "trainer-xp-scoped-v1" and
+                                  observation.get("content_state") == "responded")
                 rate = last.get("rate") if last else None
-                if not stats:
+                if not scope_verified or "xp_current" not in stats:
                     rate = None
                     self.samples.pop(key, None)
+                    last = None
                 if stats:
                     if last and now - last["seen"] >= 5:
                         rate = measured_xp_per_hour(

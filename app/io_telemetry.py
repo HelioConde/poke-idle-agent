@@ -92,14 +92,28 @@ def measured_xp_per_hour(previous: dict | None, current: dict,
 
 
 DIAGNOSTIC_STATUSES = frozenset({
-    "landing", "other_route", "reader_unavailable", "no_matches", "metrics"
+    "landing", "other_route", "reader_unavailable", "no_matches", "metrics", "legacy_protocol"
 })
+
+XP_REASONS = frozenset({
+    "trainer_xp_scoped", "trainer_panel_missing", "trainer_level_missing",
+    "trainer_xp_missing", "trainer_xp_ambiguous", "not_on_app", "unknown", "reader_unavailable",
+})
+
+TELEMETRY_PROTOCOL_VERSION = 2
+DOM_READER_VERSIONS = frozenset({"trainer-xp-scoped-v1", "unknown"})
+CONTENT_STATES = frozenset({"responded", "unavailable", "outdated", "not_app"})
 
 
 def sanitize_observation(value: object) -> dict:
     """Aceita somente status e contagens. Nada de URL, HTML ou identificadores."""
-    if not isinstance(value, dict) or set(value) != {
-            "status", "canvas", "iframes", "candidates"}:
+    basic = {"status", "canvas", "iframes", "candidates"}
+    legacy_extra = {"xp_candidates", "xp_ambiguous"}
+    scoped_extra = legacy_extra | {"xp_trainer_scoped"}
+    current_extra = scoped_extra | {"xp_reason"}
+    versioned_extra = current_extra | {"telemetry_protocol", "reader_version", "content_state"}
+    if (not isinstance(value, dict) or not basic.issubset(value) or
+            (set(value) - basic) not in (set(), legacy_extra, scoped_extra, current_extra, versioned_extra)):
         raise ValueError("Diagnóstico inválido")
     if not isinstance(value["status"], str) or value["status"] not in DIAGNOSTIC_STATUSES:
         raise ValueError("Status de diagnóstico inválido")
@@ -107,4 +121,25 @@ def sanitize_observation(value: object) -> dict:
         maximum = 3500 if key == "candidates" else 99
         if type(value[key]) is not int or not 0 <= value[key] <= maximum:
             raise ValueError("Contagem de diagnóstico inválida")
+    if legacy_extra.issubset(value):
+        scoped = value.get("xp_trainer_scoped", False)
+        if (type(value["xp_candidates"]) is not int or
+                not 0 <= value["xp_candidates"] <= 20 or
+                type(value["xp_ambiguous"]) is not bool or
+                type(scoped) is not bool or
+                (scoped and value["xp_candidates"] == 0) or
+                value["xp_ambiguous"] != (value["xp_candidates"] > 1 and not scoped)):
+            raise ValueError("Contagem de XP inválida")
+        if "xp_reason" in value and (
+                not isinstance(value["xp_reason"], str) or
+                value["xp_reason"] not in XP_REASONS or
+                (scoped and value["xp_reason"] != "trainer_xp_scoped")):
+            raise ValueError("Motivo de XP inválido")
+    if versioned_extra.issubset(value):
+        if (value["telemetry_protocol"] != TELEMETRY_PROTOCOL_VERSION or
+                value["reader_version"] not in DOM_READER_VERSIONS or
+                value["content_state"] not in CONTENT_STATES):
+            raise ValueError("Versão de telemetria inválida")
+        if (value["content_state"] == "responded") != (value["reader_version"] == "trainer-xp-scoped-v1"):
+            raise ValueError("Estado do leitor incompatível")
     return dict(value)

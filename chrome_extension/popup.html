@@ -11,13 +11,18 @@ button{border:0;border-radius:8px;background:#7867eb;color:white;font-weight:bol
 #tab-list li{padding:8px;border-bottom:1px solid #3b4c6b;overflow-wrap:anywhere}
 </style></head><body>
 <h2>Idle Game Agent</h2>
-<p>Localiza as abas dos jogos mesmo inativas, sem ler senhas ou conteúdo do jogo.</p>
+<p>Monitor 0.2.2 · telemetria local, sem ações de jogo.</p>
 <label for="profile">Nome deste perfil Chrome</label>
 <input id="profile" maxlength="48" placeholder="Ex.: Perfil principal" autocomplete="off">
 <label for="token">Chave do monitor local</label>
 <input id="token" type="password" maxlength="128" placeholder="Copie do terminal local" autocomplete="off">
-<button id="save">Salvar e sincronizar</button>
+<button id="save">Configurar emparelhamento e sincronizar</button>
+<button id="sync" type="button">Sincronizar agora</button>
+<button id="test" type="button">Testar conexão</button>
+<button id="monitor" type="button">Abrir monitor</button>
 <div id="status" role="status">Carregando...</div>
+<p id="diagnostic"></p>
+<details><summary>Ver diagnóstico técnico</summary><p id="technical-diagnostic"></p></details>
 <ul id="tab-list"></ul>
 <p>Veja o painel em <b>http://127.0.0.1:8768</b>. Cada perfil Chrome precisa carregar a extensão separadamente.</p>
 <script src="popup.js"></script></body></html>
