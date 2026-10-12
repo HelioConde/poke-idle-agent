@@ -152,6 +152,17 @@ class MultipleAccountsTests(unittest.TestCase):
         state=account()
         self.assertEqual(plan(state,[])["capabilities"]["cashout"],"unverified")
 
+    def test_world_monetization_is_not_presented_as_earned_income(self):
+        state=account()
+        out=plan(state,[],"monetization")
+        self.assertEqual(out["stage"],"unsupported")
+        self.assertEqual(out["action"],"review_goal")
+
+    def test_world_synthetic_observed_source_not_counted(self):
+        metrics=[sample(area="h1",source="observed"),sample(area="h2",source="observed")]
+        state=account(hunts=self.hunts)
+        self.assertEqual(plan(state,metrics)["stage"],"measurement")
+
 
 class RankingTests(unittest.TestCase):
     def setUp(self):
