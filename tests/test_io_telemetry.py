@@ -76,6 +76,38 @@ class IoTelemetryTests(unittest.TestCase):
             self.assertIn(key, rec)
         self.assertEqual(rec["action"], "track_farm")
 
+    def test_map_and_native_controls_have_fixed_selectors(self):
+        audit = {"route": "app", "farm_state": "active", "map_state": "open", "controls": {
+            "hunt_map": {"selector": 'button[data-modal="mapa"]',
+                         "present": True, "enabled": True, "policy": "read_only"},
+            "map_dialog": {"selector": '#modal .modal-caixa[data-modal="mapa"]',
+                           "present": True, "enabled": True, "policy": "read_only"},
+            "native_revive": {"selector": "#auto-revive", "present": True,
+                              "enabled": True, "policy": "read_only", "toggle_state": "on"},
+            "native_potion": {"selector": "#auto-potion", "present": True,
+                              "enabled": True, "policy": "read_only", "toggle_state": "off"},
+            "surrender": {"selector": "#eco-desistir", "present": True,
+                          "enabled": True, "policy": "permanently_blocked"},
+        }}
+        self.assertEqual(sanitize_automation_audit(audit), audit)
+        for corrupted in (
+            {**audit, "map_state": "traveling"},
+            {**audit, "controls": {**audit["controls"],
+             "native_potion": {**audit["controls"]["native_potion"], "toggle_state": "click"}}},
+            {**audit, "controls": {**audit["controls"],
+             "native_revive": {**audit["controls"]["native_revive"], "selector": "#random"}}},
+            {**audit, "controls": {**audit["controls"],
+             "surrender": {**audit["controls"]["surrender"], "policy": "read_only"}}},
+            {**audit, "controls": {**audit["controls"],
+             "hunt_map": {**audit["controls"]["hunt_map"], "policy": "clickable"}}},
+            {**audit, "controls": {**audit["controls"],
+             "map_dialog": {**audit["controls"]["map_dialog"], "toggle_state": "on"}}},
+            {**audit, "controls": {**audit["controls"],
+             "native_revive": {**audit["controls"]["native_revive"], "checked": True}}},
+        ):
+            with self.subTest(corrupted=corrupted), self.assertRaises(ValueError):
+                sanitize_automation_audit(corrupted)
+
     def test_automation_audit_is_closed_and_never_approves_control(self):
         audit = {"route": "app", "farm_state": "active", "controls": {
             "surrender": {"selector": "#eco-desistir", "present": True,
