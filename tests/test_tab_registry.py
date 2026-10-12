@@ -122,6 +122,19 @@ class RegistryApiTests(unittest.TestCase):
         with self.assertRaises(HTTPError):
             urlopen(wrong)
 
+    def test_history_query_rejects_invalid_parameters(self):
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(self.endpoint + "/api/history?profile_id=wrong&window_id=x&tab_id=1")
+        self.assertEqual(caught.exception.code, 400)
+
+    def test_history_query_accepts_known_tab_identity(self):
+        urlopen(Request(self.endpoint + "/api/sync", data=json.dumps(payload()).encode(),
+                        headers={"Content-Type": "application/json", "Origin": ORIGIN,
+                                 "X-IGA-Token": self.registry.token}, method="POST"))
+        with urlopen(self.endpoint + "/api/history?profile_id=" + PROFILE +
+                     "&window_id=3&tab_id=12") as response:
+            self.assertEqual(json.load(response), [])
+
 
 if __name__ == "__main__":
     unittest.main()

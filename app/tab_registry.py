@@ -9,7 +9,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
 from app.memory import MemoryStore
@@ -216,6 +216,16 @@ class Registry:
                                      t["window_id"], t["tab_id"]))
             return {"profiles": len(self.records), "tabs": tabs}
 
+    def history(self, profile_id: str, window_id: int, tab_id: int,
+                limit: int = 20) -> list[dict]:
+        """Expõe somente o histórico normalizado de uma aba IO conhecida."""
+        if self.memory is None:
+            return []
+        if (not PROFILE_ID.fullmatch(profile_id) or type(window_id) is not int or
+                type(tab_id) is not int or window_id < 0 or tab_id < 0):
+            raise ValueError("Consulta de histórico inválida")
+        return self.memory.history(profile_id, f"{window_id}:{tab_id}", limit)
+
 
 def load_token(path: Path = TOKEN_FILE) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -276,6 +286,21 @@ def create_handler(registry: Registry):
                 self.send_data(200, SCRIPT.encode(), "text/javascript; charset=utf-8")
             elif path == "/api/tabs":
                 output = json.dumps(registry.snapshot(), ensure_ascii=False).encode()
+                self.send_data(200, output, "application/json; charset=utf-8")
+            elif path == "/api/history":
+                query = parse_qs(urlsplit(self.path).query)
+                try:
+                    profile_id = query.get("profile_id", [""])[0]
+                    window_id = int(query.get("window_id", [""])[0])
+                    tab_id = int(query.get("tab_id", [""])[0])
+                    limit = int(query.get("limit", ["20"])[0])
+                    if not 1 <= limit <= 100:
+                        raise ValueError
+                    output = json.dumps(registry.history(
+                        profile_id, window_id, tab_id, limit), ensure_ascii=False).encode()
+                except (ValueError, TypeError):
+                    self.send_error(400, "Consulta inválida")
+                    return
                 self.send_data(200, output, "application/json; charset=utf-8")
             else:
                 self.send_error(404)
