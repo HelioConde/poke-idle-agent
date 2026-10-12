@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Idle Game Agent - Monitor de Abas",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Monitora abas e métricas numéricas do Poke Idle IO, com recomendações em simulação.",
   "permissions": [
     "storage",
