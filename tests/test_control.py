@@ -16,6 +16,11 @@ class ControlTests(unittest.TestCase):
             self.assertFalse(result.accepted)
             self.assertFalse(result.executed)
 
+    def test_authorized_io_action_can_only_be_planned(self):
+        result = DryRunExecutor().execute(ActionRequest("io", "select_hunt", {}))
+        self.assertTrue(result.accepted)
+        self.assertFalse(result.executed)
+
     def test_real_mode_is_always_disabled(self):
         result = DryRunExecutor().execute(
             ActionRequest("simulated", "gather", {}, mode="real"))

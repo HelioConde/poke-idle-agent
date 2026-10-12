@@ -17,8 +17,9 @@
 - Confirmar os seletores do HUD autenticado de `https://pokeidle.io/app` e verificar a
   leitura em segundo plano. Sem essa evidência, o adaptador continua reportando DOM/Canvas
   vazio em vez de fabricar métricas.
-- Confirmar, para cada controle do IO, termos vigentes e uma ação de baixo risco autorizada
-  antes de incluir qualquer item na lista de ações reais. A lista atual para IO é vazia.
+- Os termos públicos do IO, atualizados em 30/09/2026, permitem automação no jogo e
+  no Market. Ainda falta validar em conta cada controle, pré-condição e resultado antes
+  de habilitar ação real. A lista de execução real continua vazia.
 - Qualquer integração de conta, captura visual ou automação no Poke Idle World requer
   autorização explícita da equipe; ela não está implementada.
 - Mercado, inventário, equipe, evolução e breeding dependem de interfaces confirmadas e

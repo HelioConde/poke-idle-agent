@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from time import monotonic
 
+from app.policy import action_policy
+
 
 SIMULATED_ACTIONS = frozenset({"gather", "rest", "sell"})
 GAME_ACTIONS = {"simulated": SIMULATED_ACTIONS, "io": frozenset(),
@@ -77,18 +79,22 @@ class DryRunExecutor:
     def execute(self, request: ActionRequest, now: float | None = None) -> ExecutionResult:
         if request.game not in GAME_ACTIONS:
             raise ValueError("Adaptador de jogo inválido")
+        policy = action_policy(request.game, request.action)
         if request.mode != "dry_run":
             result = ExecutionResult(False, False, "Modo real desabilitado", request.action,
                                      request.mode)
         elif not isinstance(request.parameters, dict):
             result = ExecutionResult(False, False, "Parâmetros inválidos", request.action,
                                      request.mode)
-        elif request.action not in GAME_ACTIONS[request.game]:
+        elif (request.action not in GAME_ACTIONS[request.game] and
+              (policy is None or not policy.dry_run_allowed)):
             result = ExecutionResult(False, False,
                                      "Ação não autorizada para este adaptador",
                                      request.action, request.mode)
         else:
             allowed, reason = self.risk_manager.allow_attempt(now)
+            if request.game == "io" and policy and policy.requires_confirmation:
+                reason = "Plano simulado; confirmação humana será exigida antes de qualquer execução"
             result = ExecutionResult(allowed, False,
                                      "Plano simulado aceito" if allowed else reason,
                                      request.action, request.mode)
