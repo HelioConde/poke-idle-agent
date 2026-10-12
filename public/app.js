@@ -338,6 +338,20 @@ async function refreshUnifiedTabs() {
             controls.appendChild(card);
           }
           section.append(heading,summary,controls);
+          const recommendations=Array.isArray(io.advisory_queue)
+            ? io.advisory_queue.slice(0,3) : [];
+          if(recommendations.length){
+            const adviceTitle=document.createElement('strong');
+            adviceTitle.textContent='Recomendações para revisar (sem execução)';
+            const adviceList=document.createElement('ul');
+            for(const rec of recommendations){
+              if(rec.status!=='review_only'||rec.action_authorized!==false)continue;
+              const adviceItem=document.createElement('li');
+              adviceItem.textContent=(rec.priority==='high'?'Atenção: ':'')+rec.message;
+              adviceList.appendChild(adviceItem);
+            }
+            section.append(adviceTitle,adviceList);
+          }
           auditGrid.appendChild(section);
         }
       }
@@ -345,6 +359,60 @@ async function refreshUnifiedTabs() {
   }catch(error){
     status.textContent='Monitor não iniciado: '+error.message;
     grid.replaceChildren();
+  }
+}
+
+async function loadIoHuntComparison(){
+  const status=document.getElementById('io-hunt-status');
+  const grid=document.getElementById('io-hunt-results');
+  const objective=document.getElementById('io-hunt-objective');
+  if(!status||!grid||!objective)return;
+  grid.replaceChildren();
+  const goal=['xp','resources','balanced'].includes(objective.value)
+    ? objective.value : 'xp';
+  try{
+    const response=await fetch('/api/io/hunts?objective='+encodeURIComponent(goal),
+      {cache:'no-store'});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const report=await response.json();
+    if(!report.configured){
+      status.textContent=report.reason||'Medições manuais IO ainda não configuradas.';
+      return;
+    }
+    status.textContent='Comparação offline por conta cadastrada e Pokémon ativo. '+
+      'Nenhuma hunt atual foi confirmada automaticamente; nenhuma ação será executada.';
+    for(const row of report.comparisons||[]){
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const title=document.createElement('strong');
+      title.textContent=row.profile_id+' · '+row.account_id+
+        ' · Pokémon: '+(row.pokemon_id||'não identificado');
+      card.appendChild(title);
+      if(row.ranking?.status!=='ranked'){
+        const need=document.createElement('p');
+        need.textContent=row.ranking?.reason||'Ainda sem medições suficientes.';
+        card.appendChild(need);
+      }else{
+        const caption=document.createElement('p');
+        caption.textContent='Ranking com medições fornecidas manualmente, não vinculado à aba Chrome.';
+        card.appendChild(caption);
+        const ranking=document.createElement('ol');
+        for(const hunt of row.ranking.ranked.slice(0,8)){
+          const item=document.createElement('li');
+          const xp=Number.isFinite(hunt.xp_per_hour)
+            ? hunt.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})
+            : 'não medido';
+          item.textContent=hunt.hunt+' · '+xp+' XP/h · '+
+            hunt.minutes+' min · derrotas/h: '+hunt.defeats_per_hour;
+          ranking.appendChild(item);
+        }
+        card.appendChild(ranking);
+      }
+      grid.appendChild(card);
+    }
+    if(!(report.comparisons||[]).length)status.textContent='Nenhuma conta IO cadastrada para comparação.';
+  }catch(error){
+    status.textContent='Comparador indisponível: '+String(error.message||error);
   }
 }
 
@@ -378,6 +446,9 @@ async function loadWorldIVs() {
     }
   }catch(error){status.textContent='Não foi possível calcular IVs: '+error.message;}
 }
+const ioObjective=document.getElementById('io-hunt-objective');
+if(ioObjective)ioObjective.addEventListener('change',loadIoHuntComparison);
+loadIoHuntComparison();
 loadRegisteredAccounts();
 refreshUnifiedTabs();
 setInterval(refreshUnifiedTabs, 5000);
