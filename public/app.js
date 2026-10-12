@@ -261,6 +261,14 @@ async function refreshUnifiedTabs() {
         const source=item.observation?.xp_trainer_scoped===true
           ? 'origem: treinador confirmada'
           : 'origem do XP: não confirmada';
+        const movingRates=Object.entries(item.xp_windows||{})
+          .filter(([period,value])=>['5m','15m','60m'].includes(period)
+            && typeof value==='number' && Number.isFinite(value) && value>=0)
+          .map(([period,value])=>period+': '+
+            value.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h');
+        const rateTrend=movingRates.length
+          ? ' · médias observadas: '+movingRates.join(' · ')
+          : ' · médias de 5/15/60 min: aguardando janela suficiente';
         const reader=legacy
           ? 'leitor desatualizado; recarregue extensão e /app'
           : (item.observation?.content_state==='outdated'
@@ -271,7 +279,7 @@ async function refreshUnifiedTabs() {
           ' · '+(item.observation?.xp_ambiguous
             ? 'XP ambíguo: '+item.observation.xp_candidates+' barras distintas, sem XP/h'
             : (item.advice?.reason || 'Leitura IO pendente'))+
-          ' · '+reader+
+          ' · '+reader+rateTrend+
           ' · Atualizada há '+item.age_seconds+'s';
       } else {
         paragraph.textContent='Poke Idle World: somente identificação da aba; telemetria privada desativada.';
@@ -283,11 +291,13 @@ async function refreshUnifiedTabs() {
     const auditGrid=document.getElementById('io-automation-grid');
     if(auditStatus && auditGrid){
       auditGrid.replaceChildren();
-      const io=payload.tabs.find(item=>item.game==='io' && item.io_audit);
-      if(!io){auditStatus.textContent='A extensão ainda não enviou a auditoria somente leitura dos controles.';}
-      else {
-        const audit=io.io_audit;
-        const mapStatus={open:'Mapa aberto (observado)',closed:'Mapa fechado',unknown:'Mapa ainda não identificado'};
+      const ioTabs=payload.tabs.filter(item=>item.game==='io' && item.io_audit);
+      if(!ioTabs.length){
+        auditStatus.textContent='A extensão ainda não enviou uma auditoria recente dos controles IO.';
+      }else{
+        auditStatus.textContent=ioTabs.length+' aba(s) IO observada(s). Leitura apenas: nenhum controle está autorizado para execução.';
+        const mapStatus={open:'Mapa aberto',closed:'Mapa fechado',
+                         unknown:'Mapa ainda não identificado'};
         const controlLabels={
           trainer_panel:'Treinador',active_pokemon_panel:'Pokémon ativo',
           inventory:'Inventário',surrender:'Desistir — proibido',
@@ -297,25 +307,38 @@ async function refreshUnifiedTabs() {
           native_revive:'Revive nativo',native_potion:'Poções nativas',
           native_return_hunt:'Voltar à hunt (nativo)'
         };
-        auditStatus.textContent='Telemetria atualizada há '+io.age_seconds+'s · farm: '+
-          (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+
-          ' · '+(mapStatus[audit.map_state]||'Mapa não verificado')+
-          '. Auditoria somente leitura: nenhuma ação autorizada.';
-        for(const [name,control] of Object.entries(audit.controls||{})){
-          const card=document.createElement('article');card.className='world-sample';
+        for(const io of ioTabs){
+          const audit=io.io_audit;
+          const section=document.createElement('article');
+          section.className='world-sample';
           const heading=document.createElement('strong');
-          heading.textContent=controlLabels[name]||name.replaceAll('_',' ');
-          const detail=document.createElement('p');
-          if(control.policy==='permanently_blocked'){
-            detail.textContent='BLOQUEADO permanentemente: risco de derrota/perda de XP.';
-          }else{
-            const toggle={on:'ativado no próprio jogo',off:'desativado no próprio jogo',
-                          unknown:'estado não confirmado'};
-            detail.textContent=(control.present?'Detectado':'Não detectado')+
-              ' · apenas leitura'+(control.toggle_state
-              ? ' · '+(toggle[control.toggle_state]||'estado não confirmado'):'');
+          heading.textContent=(io.profile_label||'Perfil Chrome')+
+            ' · aba '+String(io.tab_id)+' · '+(mapStatus[audit.map_state]||'Mapa não verificado');
+          const summary=document.createElement('p');
+          summary.textContent='Telemetria há '+String(io.age_seconds)+'s · farm: '+
+            (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+
+            ' · nenhuma ação liberada';
+          const controls=document.createElement('div');
+          controls.className='world-results';
+          for(const [name,control] of Object.entries(audit.controls||{})){
+            const card=document.createElement('article');card.className='world-sample';
+            const label=document.createElement('strong');
+            label.textContent=controlLabels[name]||name.replaceAll('_',' ');
+            const detail=document.createElement('p');
+            if(control.policy==='permanently_blocked'){
+              detail.textContent='BLOQUEADO: risco de derrota/perda de XP.';
+            }else{
+              const toggle={on:'ativado no jogo',off:'desativado no jogo',
+                            unknown:'estado não confirmado'};
+              detail.textContent=(control.present?'Detectado':'Não detectado')+
+                ' · apenas leitura'+(control.toggle_state
+                ? ' · '+(toggle[control.toggle_state]||'estado não confirmado'):'');
+            }
+            card.append(label,detail);
+            controls.appendChild(card);
           }
-          card.append(heading,detail);auditGrid.appendChild(card);
+          section.append(heading,summary,controls);
+          auditGrid.appendChild(section);
         }
       }
     }
