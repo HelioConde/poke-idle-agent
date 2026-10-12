@@ -77,6 +77,8 @@ def advise(species: str, pokemon_level: int, trainer_level: int|None) -> list[st
     ]
     if species.casefold().strip() in ("charmander","charmeleon") and pokemon_level>=40:
         notes.append("Evoluir de graça reinicia no nível 1! Com pedras de evolução corretas preserva nível. Confira o modal em Cerulean.")
+    if species.casefold().strip() == "charizard":
+        notes.append("Charizard é Fogo/Voador: verifique se as fraquezas a Pedra, Água e Elétrico seguem as regras específicas deste jogo; não assuma vantagem apenas pelo nível.")
     if pokemon_level>=100:
         notes.append("Avalie hunts acessíveis entre níveis 80–150 e eficiência de tipos; não escolha somente XP bruto.")
     if trainer_level is None:
@@ -85,7 +87,7 @@ def advise(species: str, pokemon_level: int, trainer_level: int|None) -> list[st
 
 def main():
     parser=argparse.ArgumentParser(description="Analisador OFFLINE World")
-    parser.add_argument("--species",default="Charmander")
+    parser.add_argument("--species",default="Charizard")
     parser.add_argument("--pokemon-level",type=int,default=110)
     parser.add_argument("--trainer-level",type=int)
     parser.add_argument("--csv",type=Path)

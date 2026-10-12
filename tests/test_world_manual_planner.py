@@ -46,7 +46,12 @@ class WorldPlannerTests(unittest.TestCase):
         self.assertTrue(any("reinicia" in x for x in advise("Charmander",110,None)))
 
     def test_trainer_level_required(self):
-        self.assertTrue(any("TREINADOR" in x for x in advise("Charmander",110,None)))
+        self.assertTrue(any("TREINADOR" in x for x in advise("Charizard",110,None)))
+
+    def test_charizard_already_evolved(self):
+        notes = advise("Charizard",110,None)
+        self.assertTrue(any("Fogo/Voador" in x for x in notes))
+        self.assertFalse(any("reinicia" in x for x in notes))
 
     def test_reject_zero_minutes(self):
         with self.assertRaises(ValueError):

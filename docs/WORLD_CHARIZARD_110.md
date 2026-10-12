@@ -1,4 +1,4 @@
-# World: plano de progresso do Charmander nível 110
+# World: plano de progresso do Charizard nível 110
 
 **Uso OFFLINE, manual e independente do navegador.** Nenhum bot, extensão de
 leitura de conta, acesso a WebSocket, login ou comando do World é implementado.
@@ -13,13 +13,14 @@ leitura de conta, acesso a WebSocket, login ou comando do World é implementado.
 
 ## Plano prático nível 110
 
-1. **Confira o nome da espécie e o nível do treinador.** O Pokémon pode
-   continuar sendo Charmander mesmo em nível alto. Treinador e Pokémon
-   têm curvas/níveis diferentes.
-2. **CUIDADO AO EVOLUIR:** a evolução gratuita reinicia o Pokémon no nível 1.
-   A evolução com as pedras exigidas preserva o nível. O botão funciona em
-   Cerulean, e o modal informa os recursos. Não confirmar evolução gratuita
-   de Pokémon 110 sem entender a perda de nível.
+1. **Espécie confirmada: Charizard nível 110.** Já evoluído. Precisamos
+   do nível do TREINADOR para saber quais hunts são acessíveis. Treinador
+   e Pokémon possuem níveis diferentes.
+2. **Não há evolução pendente para esse Charizard.** O alerta de
+   evolução gratuita reiniciar o nível não é uma ação recomendada para
+   o Pokémon que você já evoluiu.
+   Como Fogo/Voador, avalie fraquezas a Pedra (especialmente), Água e
+   Elétrico conforme os cálculos de tipos do World.
 3. Ative as rotinas **nativas** Auto-Potion e Auto-Revive se fizerem sentido;
    Auto-Catch depende de VIP. **Não usar macros, cliques simulados ou
    programas externos não autorizados.**
@@ -27,8 +28,8 @@ leitura de conta, acesso a WebSocket, login ou comando do World é implementado.
    função, que inicia amostra de 5 minutos. Fechar simplesmente a aba
    não equivale a iniciar esse modo.
 5. O guia comunitário cita hunts Houndoom e Charizard para nível 100–150
-   em rotas preparadas, mas não são necessariamente boas para um Charmander
-   de tipo Fire. Teste tempo de abate, dano recebido, XP e gold líquido em
+   em rotas preparadas, mas não são necessariamente boas para um Charizard
+   do tipo Fogo/Voador. Teste tempo de abate, dano recebido, XP e gold líquido em
    pelo menos duas hunts adequadas à sua equipe e nível de treinador.
 6. Preserve itens raros e acompanhe o mercado apenas pelas funções oficiais.
 
@@ -36,7 +37,7 @@ leitura de conta, acesso a WebSocket, login ou comando do World é implementado.
 
 No PowerShell, na raiz do repositório:
 
-    py -3 -m app.world_manual_planner --species Charmander --pokemon-level 110
+    py -3 -m app.world_manual_planner --species Charizard --pokemon-level 110
 
 Faça uma cópia de examples/world_hunts_demo.csv em data/world_hunts_manuais.csv
 e SUBSTITUA tudo por dados medidos por você dentro do jogo:
@@ -47,7 +48,7 @@ e SUBSTITUA tudo por dados medidos por você dentro do jogo:
 
 Os números acima são apenas ilustração, não resultados do jogo.
 
-    py -3 -m app.world_manual_planner --species Charmander --pokemon-level 110 --trainer-level 95 --csv data/world_hunts_manuais.csv --priority gold
+    py -3 -m app.world_manual_planner --species Charizard --pokemon-level 110 --trainer-level 95 --csv data/world_hunts_manuais.csv --priority gold
 
 O nível 95 acima também é exemplo; informe seu nível verdadeiro.
 
