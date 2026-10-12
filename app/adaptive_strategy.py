@@ -185,7 +185,7 @@ def rank_hunts(account: Account, measurements: list[Measurement],
             continue
         if (sample.pokemon_id != account.active_pokemon_id or sample.hunt_id not in unlocked):
             continue
-        if sample.source == "demo":
+        if sample.source == "demo" or (account.game == "world" and sample.source != "manual"):
             continue
         g = groups.setdefault(sample.hunt_id, {"minutes": 0.0, "xp": 0.0,
                                                "net": 0.0, "defeats": 0, "samples": 0})
@@ -257,6 +257,9 @@ def plan(account: Account, measurements: list[Measurement],
     if account.trainer_level is None:
         return result("discovery", "record_trainer_level",
                       "Nível do treinador desconhecido; não presumir hunts desbloqueadas")
+    if account.game == "world" and objective == "monetization":
+        return result("unsupported", "review_goal",
+                      "World não possui saque oficial comprovado; não converter gold ou diamantes em USDT")
     unlocked = [h for h in account.hunts if h.unlocked is True]
     if not unlocked:
         locked = sorted((h.required_trainer_level for h in account.hunts
