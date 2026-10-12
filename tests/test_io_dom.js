@@ -14,7 +14,7 @@ const fakeDoc = {querySelectorAll(){return [
  {tagName:"DIV",childElementCount:0,textContent:"XP 20 / 100",closest(){return null;}},
  {tagName:"DIV",childElementCount:0,textContent:"Password: abc",closest(){return null;}}
 ];}};
-assert.deepEqual(scanDocument(fakeDoc), {xp_current:20,xp_max:100});
+assert.deepEqual(scanDocument(fakeDoc), {}); // Sem .tr-dados, pode ser XP do Pokemon
 const publicHud = {querySelectorAll(){return [
   {tagName:"DIV",childElementCount:0,textContent:"— Nv 1",closest(){return null;}},
   {tagName:"INPUT",childElementCount:0,textContent:"senha secret",closest(){return null;}}
@@ -29,7 +29,7 @@ const nested = {querySelectorAll(){return [
   {tagName:"DIV",childElementCount:2,textContent:"CPF 123.456",closest(){return null;}}
 ];}};
 assert.deepEqual(scanDocument(nested), {
-  xp_current:100, xp_max:300, hp_current:50, hp_max:100
+  hp_current:50, hp_max:100 // XP fora do painel do treinador não é confiável
 });
 assert.deepEqual(scanDocument({querySelectorAll(){return [];}}), {});
 console.log("IO DOM: parser numerico e exclusao de credenciais OK");
@@ -43,7 +43,7 @@ const blankDoc={querySelectorAll(selector){
 assert.deepEqual(diagnose(blankDoc,"/app"),{
  source:"dom",stats:{},available:false,
  diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0,
-   xp_candidates:0,xp_ambiguous:false}
+   xp_candidates:0,xp_ambiguous:false,xp_trainer_scoped:false}
 });
 assert.equal(diagnose(blankDoc,"/").diagnostic.status,"landing");
 assert.equal(diagnose(blankDoc,"/news").diagnostic.status,"other_route");
@@ -81,6 +81,61 @@ const doubleXP={querySelectorAll(selector){
 assert.deepEqual(diagnose(doubleXP,"/app"),{
  source:"dom",stats:{level:19},available:true,
  diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:4,
-   xp_candidates:2,xp_ambiguous:true}
+   xp_candidates:2,xp_ambiguous:true,xp_trainer_scoped:false}
 });
 console.log("IO XP: formato sufixo identificado e barras concorrentes bloqueadas");
+
+
+// Cenário observado na conta real: XP treinador AlchemyFlames Nv 19 em
+// .tr-dados, XP do Pokémon Oddish Nv 1 em .ativo-info. Dados aqui são fixos.
+function sampleNode(txt, tag="SPAN", child=0) {
+  return {tagName:tag, childElementCount:child, textContent:txt,
+    closest(){return null;}};
+}
+const trainerPanel = {
+  querySelectorAll(selector) {
+    if (selector.includes("span,div,p")) return [
+      sampleNode("Alguém", "DIV"), sampleNode("Nv 19"),
+      sampleNode("7.346 / 15.400 xp"), sampleNode("7.346 / 15.400 xp","DIV",2),
+      sampleNode("+15% XP")
+    ];
+    return [];
+  }
+};
+const scopedHud = {
+  querySelectorAll(selector) {
+    if(selector===".tr-dados") return [trainerPanel];
+    if(selector==="canvas")return Array(9).fill({});
+    if(selector==="iframe")return [];
+    return [sampleNode("Nv 19"),sampleNode("7.346 / 15.400 xp"),
+      sampleNode("0 / 100 xp"),sampleNode("Nv 1"),sampleNode("+15% XP")];
+  }
+};
+assert.deepEqual(scanDocument(scopedHud),
+  {level:19,xp_current:7346,xp_max:15400});
+assert.deepEqual(diagnose(scopedHud,"/app"),{
+  source:"dom",available:true,
+  stats:{level:19,xp_current:7346,xp_max:15400},
+  diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:5,
+    xp_candidates:2,xp_ambiguous:false,xp_trainer_scoped:true}
+});
+
+// Proteção: se o quadro do treinador contiver 2 progressões diferentes,
+// nem escolher pelo maior XP nem herdar o XP do Pokemon.
+const uncertainPanel = {
+  querySelectorAll(selector) {
+    if (selector.includes("span,div,p")) return [
+      sampleNode("Nv 19"), sampleNode("7.346 / 15.400 xp"),
+      sampleNode("400 / 1.000 xp")
+    ];
+    return [];
+  }
+};
+const uncertainHud = {...scopedHud,
+ querySelectorAll(selector) {
+    if(selector===".tr-dados") return [uncertainPanel];
+    return scopedHud.querySelectorAll(selector);
+ }};
+assert.deepEqual(scanDocument(uncertainHud), {level:19});
+assert.equal(diagnose(uncertainHud,"/app").diagnostic.xp_ambiguous,true);
+console.log("IO DOM: XP treinador separado de XP Pokemon por tr-dados");
