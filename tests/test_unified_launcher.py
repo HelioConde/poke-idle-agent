@@ -115,6 +115,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('id="tabs-grid"', html)
         self.assertIn('id="world-capture-results"', html)
         self.assertIn('id="world-ivs-results"', html)
+        self.assertIn("Telemetria IO pela extensão, somente leitura", html)
+        self.assertNotIn("Capturas passivas com Playwright", html)
         with urlopen(self.url("/monitor"), timeout=2) as res:
             monitor = res.read().decode("utf-8")
         self.assertIn("/monitor/registry.js", monitor)
@@ -191,13 +193,17 @@ class IntegrationTests(unittest.TestCase):
     def test_private_options_do_not_load_demo_files_as_real(self):
         empty=self.dir/"empty"
         empty.mkdir()
-        self.assertTrue(all(x is None for x in available_files(empty).values()))
-        data=empty/"data"
-        data.mkdir()
-        (data/"world_capture.json").write_text("{}",encoding="utf-8")
-        available=available_files(empty)
-        self.assertEqual(available["world_capture_path"],data/"world_capture.json")
-        self.assertIsNone(available["ivs_path"])
+        # O launcher honra IGA_DATA_DIR no processo real. Isole este cenário
+        # para provar o fallback root/data mesmo quando a máquina do usuário
+        # já aponta IGA_DATA_DIR para o projeto original.
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(all(x is None for x in available_files(empty).values()))
+            data=empty/"data"
+            data.mkdir()
+            (data/"world_capture.json").write_text("{}",encoding="utf-8")
+            available=available_files(empty)
+            self.assertEqual(available["world_capture_path"],data/"world_capture.json")
+            self.assertIsNone(available["ivs_path"])
 
 
 if __name__ == "__main__":
