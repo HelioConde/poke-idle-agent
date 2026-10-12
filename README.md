@@ -4,6 +4,18 @@
 
 **Status: MVP experimental.** A extensão já tenta observar métricas numéricas reais no IO, mas os seletores ainda não foram validados em uma conta autenticada. As recomendações são dry-run; o agente ainda não controla o jogo. Nenhum saque real foi confirmado.
 
+## Objetivo principal: transformar farm em USDT comprovado
+
+A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
+por meio de vendas legítimas no Mercado da Comunidade do Poke Idle IO.
+**XP e nível são meios para liberar hunts e criar itens ou Pokémon vendáveis,
+não a finalidade da automação.** Primeira meta experimental: obter 1.000 Gems
+líquidas de vendas concluídas e validar manualmente um saque de US$ 7,
+sem investir na compra de Gems e sem prometer lucros.
+
+Leia a [estratégia principal, metas, regras e métricas](docs/OBJETIVO_PRINCIPAL.md).
+Esse documento deve orientar decisões do agente, desenvolvimento e testes.
+
 ## Instalar no Windows
 
 Requer Python 3.11+ e Git.
