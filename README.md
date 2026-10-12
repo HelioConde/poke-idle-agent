@@ -388,3 +388,15 @@ As referências externas estudadas foram Launcher Alt: PokeIdle,
 Hunt Atlas e Rebosteio Launcher (detalhes em
 `docs/IO_CONTROLS_AUDIT.md`). A extensão não incorpora executores
 dessas bibliotecas.
+
+### Comparador de hunts IO e fila de revisão
+
+A seção **Qual hunt rende mais?** utiliza contas cadastradas em
+`data/accounts.json` e medições manuais opcionais de
+`data/io_hunt_measurements.json`. Os dados devem pertencer à mesma conta,
+Pokémon ativo e hunts desbloqueadas; registros de demonstração não entram no
+ranking. A fila consultiva por aba alerta sobre HP baixo, farm desconhecido e
+quedas de XP/h entre médias maduras, **sem clicar no jogo**. A associação
+entre a conta cadastrada e a aba Chrome ainda não é comprovada.
+
+Guia: [Comparador de hunts IO](docs/IO_HUNT_COMPARISON.md).
