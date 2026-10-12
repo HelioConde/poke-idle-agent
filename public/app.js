@@ -114,3 +114,59 @@ async function loadWorldPokeGrid() {
   }
 }
 loadWorldPokeGrid();
+
+async function loadWorldCapture() {
+  const status = document.getElementById('world-capture-banner');
+  const container = document.getElementById('world-capture-results');
+  if (!status || !container) return;
+  container.replaceChildren();
+  try {
+    const response = await fetch('/api/world-capture', {cache:'no-store'});
+    if (!response.ok) throw new Error('HTTP '+response.status);
+    const payload = await response.json();
+    if (!payload.configured) {
+      status.textContent = 'Configure o assistente com --world-capture data/world_capture.json (somente arquivo manual).';
+      return;
+    }
+    const report = payload.report;
+    status.textContent = report.is_demo
+      ? 'DADOS FICTÍCIOS — nenhuma conta real foi acessada; ações automáticas desativadas.'
+      : 'PLANEJAMENTO MANUAL — escolha de Pokébola por conta, sem clicks nem scripts.';
+    if (!report.accounts.length) {
+      const empty=document.createElement('p');
+      empty.textContent='Nenhuma conta cadastrada.';
+      container.appendChild(empty);
+      return;
+    }
+    for (const account of report.accounts) {
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const heading=document.createElement('strong');
+      heading.textContent=account.profile_id+' · '+account.account_id+
+        (account.vip_reported_manually?' · VIP informado':' · Gratuito');
+      card.appendChild(heading);
+      const detail=document.createElement('p');
+      detail.textContent=account.reason;
+      card.appendChild(detail);
+      const stock=document.createElement('p');
+      const available=Object.entries(account.stock||{})
+        .map(([name,count])=>name+': '+Number(count).toLocaleString('pt-BR'));
+      stock.textContent='Pokébolas anotadas: '+(available.length?available.join(' · '):'Sem estoque conhecido');
+      card.appendChild(stock);
+      const history=document.createElement('p');
+      const h=account.history;
+      history.textContent='Tentativas anotadas: '+h.attempts+
+        ' · Capturas: '+h.captures+
+        ' · Shinies: '+h.shiny_captures;
+      card.appendChild(history);
+      const mode=document.createElement('p');
+      mode.className='muted';
+      mode.textContent='Modo: '+account.allowed_method+' · Execução externa: DESATIVADA';
+      card.appendChild(mode);
+      container.appendChild(card);
+    }
+  } catch(error) {
+    status.textContent='Não foi possível analisar as capturas manuais: '+error.message;
+  }
+}
+loadWorldCapture();
