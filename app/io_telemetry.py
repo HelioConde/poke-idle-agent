@@ -99,9 +99,10 @@ DIAGNOSTIC_STATUSES = frozenset({
 def sanitize_observation(value: object) -> dict:
     """Aceita somente status e contagens. Nada de URL, HTML ou identificadores."""
     basic = {"status", "canvas", "iframes", "candidates"}
-    extra = {"xp_candidates", "xp_ambiguous"}
+    legacy_extra = {"xp_candidates", "xp_ambiguous"}
+    current_extra = legacy_extra | {"xp_trainer_scoped"}
     if (not isinstance(value, dict) or not basic.issubset(value) or
-            (set(value) - basic) not in (set(), extra)):
+            (set(value) - basic) not in (set(), legacy_extra, current_extra)):
         raise ValueError("Diagnóstico inválido")
     if not isinstance(value["status"], str) or value["status"] not in DIAGNOSTIC_STATUSES:
         raise ValueError("Status de diagnóstico inválido")
@@ -109,10 +110,13 @@ def sanitize_observation(value: object) -> dict:
         maximum = 3500 if key == "candidates" else 99
         if type(value[key]) is not int or not 0 <= value[key] <= maximum:
             raise ValueError("Contagem de diagnóstico inválida")
-    if extra.issubset(value):
+    if legacy_extra.issubset(value):
+        scoped = value.get("xp_trainer_scoped", False)
         if (type(value["xp_candidates"]) is not int or
                 not 0 <= value["xp_candidates"] <= 20 or
                 type(value["xp_ambiguous"]) is not bool or
-                value["xp_ambiguous"] != (value["xp_candidates"] > 1)):
+                type(scoped) is not bool or
+                (scoped and value["xp_candidates"] == 0) or
+                value["xp_ambiguous"] != (value["xp_candidates"] > 1 and not scoped)):
             raise ValueError("Contagem de XP inválida")
     return dict(value)
