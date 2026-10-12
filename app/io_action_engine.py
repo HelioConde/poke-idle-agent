@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Protocol
 
+from app.io_local_live_controls import locally_verified_control
+
 SAFE_ACTIONS = frozenset({
     "select_hunt", "start_farm", "stop_farm",
     "inspect_inventory", "inspect_pokemon", "evaluate_evolution",
@@ -277,6 +279,9 @@ class Engine:
         if mode == "live" and req.kind == "stop_farm":
             return self._log(req, "blocked",
                              "Desistir causa derrota e perda de XP; sem parada segura validada")
+        if mode == "live" and locally_verified_control(req.kind) is None:
+            return self._log(req, "blocked",
+                             "Controle real sem prova local auditada; verified_actions do adaptador não autoriza")
         if req.kind not in adapter.verified_actions:
             return self._log(req, "blocked", "Ação não validada no adaptador")
         try:
