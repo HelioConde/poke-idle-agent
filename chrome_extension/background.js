@@ -62,7 +62,9 @@ async function observeTab(tab) {
       item.observation = {
         status:reading.available?"metrics":"no_matches",
         canvas:bounded(d.canvas,99),iframes:bounded(d.iframes,99),
-        candidates:bounded(d.candidates,3500)
+        candidates:bounded(d.candidates,3500),
+        xp_candidates:bounded(d.xp_candidates,20),
+        xp_ambiguous:d.xp_ambiguous===true
       };
     }
   } catch (_ignored) {
