@@ -1,6 +1,6 @@
 import math
 import unittest
-from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize
+from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
 
 class IoTelemetryTests(unittest.TestCase):
     def test_empty_dom_read_is_not_fabricated(self):
@@ -30,6 +30,23 @@ class IoTelemetryTests(unittest.TestCase):
         self.assertIsNone(measured_xp_per_hour(past, {"level": 15, "xp_current": 12}, 60))
         self.assertIsNone(measured_xp_per_hour(past, {"level": 14, "xp_current": 5}, 60))
         self.assertIsNone(measured_xp_per_hour(past, {"level": 14, "xp_current": 130}, 2))
+
+
+    def test_diagnostic_xp_ambiguity_is_only_count_not_private_text(self):
+        payload = {"status": "metrics", "canvas": 9, "iframes": 0,
+                   "candidates": 99, "xp_candidates": 2, "xp_ambiguous": True}
+        self.assertEqual(sanitize_observation(payload), payload)
+        old = {k: payload[k] for k in ("status", "canvas", "iframes", "candidates")}
+        self.assertEqual(sanitize_observation(old), old)
+        for corrupted in (
+            dict(payload, xp_ambiguous=False),
+            dict(payload, xp_candidates="2"),
+            dict(payload, xp_candidates=21),
+            dict(payload, raw_xp="7.346 / 15.400 xp"),
+            dict(payload, xp_ambiguous="true"),
+        ):
+            with self.subTest(corrupted=corrupted), self.assertRaises(ValueError):
+                sanitize_observation(corrupted)
 
     def test_no_action_is_executed(self):
         rec = dry_run_decision({"hp_current": 5, "hp_max": 100})
