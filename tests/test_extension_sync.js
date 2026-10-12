@@ -1,0 +1,36 @@
+const assert=require("node:assert/strict");
+const {performScan,testConnection,TELEMETRY_PROTOCOL_VERSION}=require("../chrome_extension/background.js");
+
+function fakeApi(initial={},tabs=[]){
+  const state={...initial},alarms=[];
+  return {state,scheduled:alarms,storage:{local:{async get(keys){const out={};for(const key of keys)if(key in state)out[key]=state[key];return out;},async set(values){Object.assign(state,values);}}},
+    tabs:{async query(){return tabs;},async sendMessage(){return {source:"dom",reader_version:"trainer-xp-scoped-v1",available:true,stats:{level:10,xp_current:100,xp_max:200},diagnostic:{canvas:0,iframes:0,candidates:4,xp_candidates:1,xp_ambiguous:false,xp_trainer_scoped:true,xp_reason:"trainer_xp_scoped"}};}},
+    alarms:{create(name,detail){alarms.push({name,detail});}}};
+}
+const ioTab={id:7,windowId:3,url:"https://pokeidle.io/app",title:"Pokeidle",active:false};
+const worldTab={id:8,windowId:3,url:"https://poke.idleworld.online/play",title:"World",active:true};
+
+(async()=>{
+  let api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012"},[ioTab]);
+  let calls=0;
+  let result=await performScan({api,fetchFn:async()=>{calls++;},now:()=>1000});
+  assert.equal(result.code,"pairing_missing");assert.equal(calls,0);assert.equal(api.state.connection_code,"pairing_missing");
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab,worldTab]);
+  let sent;
+  result=await performScan({api,fetchFn:async(_url,options)=>{sent=JSON.parse(options.body);return{ok:true,status:200,json:async()=>({ok:true,tab_count:2})};},now:()=>2000});
+  assert.equal(result.code,"sync_confirmed");assert.equal(api.state.connection_code,"sync_confirmed");assert.equal(sent.tabs.length,2);assert.equal(sent.tabs[0].observation.telemetry_protocol,TELEMETRY_PROTOCOL_VERSION);assert.equal(sent.tabs[0].observation.xp_trainer_scoped,true);
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
+  result=await performScan({api,fetchFn:async()=>({ok:false,status:401,json:async()=>null}),now:()=>3000});
+  assert.equal(result.code,"pairing_rejected");assert.equal(api.state.retry_count,0);assert.equal(api.scheduled.length,0);
+
+  api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
+  result=await performScan({api,fetchFn:async()=>{throw new Error("Failed to fetch");},now:()=>4000});
+  assert.equal(result.code,"server_unreachable");assert.equal(api.scheduled[0].name,"tab-sync-retry");
+
+  api=fakeApi();
+  result=await testConnection({api,fetchFn:async()=>({ok:true,json:async()=>({app:"idle-game-agent",mode:"unified"})})});
+  assert.deepEqual(result,{ok:true,code:"server_reachable"});
+  console.log("Extensão: sincronização, emparelhamento e recuperação aprovados.");
+})().catch(error=>{console.error(error);process.exitCode=1;});

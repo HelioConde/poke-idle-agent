@@ -66,7 +66,7 @@ try{
    ? 'Extensão conectada e sincronizando. '+inactive+
      (inactive===1?' aba inativa detectada.':' abas inativas detectadas.')+
      ' Este painel mostra somente metadados; não captura imagens do jogo.'
-   : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
+   : 'Nenhuma sincronização recebida. Abra o popup da extensão para verificar emparelhamento e conexão local.';
  if(!data.tabs.length){const tr=document.createElement('tr');
  const td=document.createElement('td');td.colSpan=13;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
