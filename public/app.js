@@ -26,10 +26,17 @@ async function boot() {
 async function loadFinance() {
   const status = document.getElementById('finance-banner');
   try {
-    const response = await fetch('/api/finance', {cache:'no-store'});
+    const select = document.getElementById('finance-account-select');
+    let path = '/api/finance';
+    if (select?.value) {
+      const selected = JSON.parse(select.value);
+      path += '?' + new URLSearchParams(selected).toString();
+    }
+    const response = await fetch(path, {cache:'no-store'});
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const payload = await response.json();
     if (!payload.configured) {
+      document.querySelectorAll('[data-finance]').forEach(el => { el.textContent = '—'; });
       status.textContent = 'Sem conta financeira configurada. ' + payload.reason;
       return;
     }
@@ -170,3 +177,128 @@ async function loadWorldCapture() {
   }
 }
 loadWorldCapture();
+
+
+async function loadRegisteredAccounts() {
+  const status = document.getElementById('accounts-status');
+  const grid = document.getElementById('accounts-grid');
+  const select = document.getElementById('finance-account-select');
+  if (!status || !grid || !select) return;
+  try {
+    const response = await fetch('/api/accounts', {cache:'no-store'});
+    if (!response.ok) throw Error('HTTP ' + response.status);
+    const payload = await response.json();
+    grid.replaceChildren();
+    select.replaceChildren();
+    const initial = document.createElement('option');
+    initial.value = '';
+    initial.textContent = 'Selecione uma conta IO para consultar o livro-caixa';
+    select.appendChild(initial);
+    status.textContent = payload.configured
+      ? payload.accounts.length + ' conta(s) cadastrada(s) localmente.'
+      : 'Nenhuma conta cadastrada. Use INICIAR-TUDO.bat --setup para cadastrar.';
+    for (const entry of payload.accounts) {
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const name=document.createElement('strong');
+      name.textContent=entry.game.toUpperCase()+' · '+entry.profile_id+' / '+entry.account_id;
+      card.appendChild(name);
+      const info=document.createElement('p');
+      info.textContent='Treinador: '+(entry.trainer_level ?? 'desconhecido')+
+         ' · Equipe: '+entry.pokemon_count+
+         ' · Ativo: '+(entry.active_pokemon || 'não selecionado');
+      card.appendChild(info);
+      grid.appendChild(card);
+      if(entry.game==='io'){
+        const opt=document.createElement('option');
+        opt.value=JSON.stringify({game:entry.game,profile:entry.profile_id,account:entry.account_id});
+        opt.textContent=entry.profile_id+' / '+entry.account_id;
+        select.appendChild(opt);
+      }
+    }
+    select.addEventListener('change', loadFinance);
+    await loadFinance();
+  } catch (error) {
+    status.textContent='Não foi possível carregar o cadastro: '+error.message;
+  }
+}
+
+async function refreshUnifiedTabs() {
+  const status = document.getElementById('unified-status');
+  const grid = document.getElementById('tabs-grid');
+  if(!status || !grid) return;
+  try {
+    const res=await fetch('/api/tabs',{cache:'no-store'});
+    if(!res.ok) throw Error('HTTP '+res.status);
+    const payload=await res.json();
+    status.textContent='Monitor IO ativo · '+payload.tabs.length+' aba(s) · '+
+      payload.profiles+' perfil(is) Chrome';
+    grid.replaceChildren();
+    if(!payload.tabs.length){
+      const empty=document.createElement('p');
+      empty.className='muted';
+      empty.textContent='Nenhuma aba sincronizada. Abra o Chrome com a extensão local emparelhada.';
+      grid.appendChild(empty); return;
+    }
+    for(const item of payload.tabs.slice(0,40)){
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const heading=document.createElement('strong');
+      heading.textContent=item.game.toUpperCase()+' · '+item.profile_label+' · '+
+        (item.active?'aba visível':'aba inativa');
+      card.appendChild(heading);
+      const paragraph=document.createElement('p');
+      if(item.game === 'io'){
+        const stats = item.telemetry?.stats || {};
+        const xp=(typeof item.xp_per_hour==='number')
+          ? item.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h'
+          : 'XP/h: não medido';
+        paragraph.textContent=xp+' · Nível: '+(stats.level ?? 'desconhecido')+
+          ' · '+(item.advice?.reason || 'Leitura IO pendente')+
+          ' · Atualizada há '+item.age_seconds+'s';
+      } else {
+        paragraph.textContent='Poke Idle World: somente identificação da aba; telemetria privada desativada.';
+      }
+      card.appendChild(paragraph);
+      grid.appendChild(card);
+    }
+  }catch(error){
+    status.textContent='Monitor não iniciado: '+error.message;
+    grid.replaceChildren();
+  }
+}
+
+async function loadWorldIVs() {
+  const status=document.getElementById('world-ivs-banner');
+  const grid=document.getElementById('world-ivs-results');
+  if(!status || !grid) return;
+  grid.replaceChildren();
+  try {
+    const res=await fetch('/api/world-ivs',{cache:'no-store'});
+    if(!res.ok) throw Error('HTTP '+res.status);
+    const payload=await res.json();
+    if(!payload.configured){
+      status.textContent=payload.reason;
+      return;
+    }
+    status.textContent=payload.report.source==='demo'
+      ? 'DADOS FICTÍCIOS — calculados localmente, não conferidos no jogo.'
+      : 'DADOS MANUAIS — projeções matemáticas, não resultados comprovados.';
+    for(const p of payload.report.pokemon.slice(0,40)){
+      const card=document.createElement('article');
+      card.className='world-sample';
+      const heading=document.createElement('strong');
+      heading.textContent=p.name+' · nível atual '+p.current_level;
+      card.appendChild(heading);
+      const details=document.createElement('p');
+      details.textContent=p.projections.map(v=>
+        'Nível '+v.level+': poder projetado '+(v.power ?? 'desconhecido')).join(' · ');
+      card.appendChild(details);
+      grid.appendChild(card);
+    }
+  }catch(error){status.textContent='Não foi possível calcular IVs: '+error.message;}
+}
+loadRegisteredAccounts();
+refreshUnifiedTabs();
+setInterval(refreshUnifiedTabs, 5000);
+loadWorldIVs();

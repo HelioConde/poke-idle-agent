@@ -21,6 +21,7 @@ jobs:
           python -m app.lab examples/sessoes_demo.csv --json > /dev/null
           python -m app.decision examples/hunts_demo.csv > /dev/null
           python -m app.world_capture_assistant --file examples/world_capture_demo.json > /dev/null
+          python -m app.unified_launcher --check
   windows-bat-check:
     runs-on: windows-latest
     steps:
@@ -30,6 +31,8 @@ jobs:
       - name: Checar sintaxe dos launchers no CMD
         shell: cmd
         run: |
+          INICIAR-TUDO.bat --check
+          INICIAR-TUDO.bat --help
           OBSERVAR-IO-CHROME.bat --check
           INICIAR-MONITOR-ABAS.bat --check
           INICIAR-PAINEL.bat --check
@@ -42,6 +45,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -v
           python -m app.world_capture_assistant --file examples/world_capture_demo.json > NUL
+          python -m app.unified_launcher --check
           python -m app.browser_probe --help
           python -m app.tab_registry --help
           python -c "from app.win_capture import find_windows; print('Windows capturaveis:', find_windows('io'))"

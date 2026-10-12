@@ -20,3 +20,11 @@ footer{padding:37px 0;color:#7d90ac;font-size:12px}
 .world-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:14px 0}
 .world-sample{border:1px solid rgba(150,165,190,.23);border-radius:12px;padding:14px;background:rgba(20,27,50,.35);min-width:0;overflow-wrap:anywhere}
 .world-sample strong{display:block;margin-bottom:8px}.world-sample p{margin:7px 0;font-size:.9rem;line-height:1.5}
+
+.unified-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin-top:12px}
+.monitor-link{display:inline-block;padding:10px 14px;border-radius:10px;
+border:1px solid rgba(159,177,221,.42);color:#d5e9ff;font-size:13px;
+text-decoration:none;background:rgba(63,78,115,.3)}
+.monitor-link:hover,.monitor-link:focus-visible{border-color:#7ab9ff;background:rgba(72,115,183,.3)}
+.account-select{display:block;max-width:100%;min-width:min(100%,310px);padding:11px 13px;
+border:1px solid #40506f;border-radius:9px;color:#f1f5ff;background:#182540;margin-top:9px}

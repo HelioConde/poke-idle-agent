@@ -14,7 +14,7 @@ from typing import Callable
 from app.adaptive_strategy import Account
 
 ROOT = Path(__file__).resolve().parents[1]
-PRIVATE_DATA = ROOT / "data"
+PRIVATE_DATA = Path(os.environ.get("IGA_DATA_DIR") or ROOT / "data").expanduser().resolve()
 
 
 def _alias(prompt: str, ask: Callable[[str], str]) -> str:

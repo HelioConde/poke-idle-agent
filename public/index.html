@@ -13,6 +13,18 @@
 <section class="intro"><p class="eyebrow">EXPERIMENTAL / VERSÃO 0.1</p><h1>Um laboratório.<br><span>Dois mundos idle.</span></h1>
 <p class="lead">Meça progresso, compare estratégias e estude agentes de jogos. Sem promessas de renda e sem acessar suas contas.</p>
 <div id="data-banner" class="banner" role="status">Carregando dados de demonstração…</div></section>
+<section class="panel" aria-label="Visão unificada de contas e abas">
+<p class="eyebrow">CENTRAL DE CONTROLE · TUDO EM UM</p>
+<h2>Suas contas e abas no mesmo painel</h2>
+<p class="muted" id="accounts-status" role="status">Carregando contas cadastradas...</p>
+<div id="accounts-grid" class="world-results"></div>
+<div class="unified-toolbar">
+<a href="/monitor" class="monitor-link">Monitor detalhado de abas</a>
+<span id="unified-status" class="muted">Monitor IO: aguardando...</span>
+</div>
+<div class="world-results" id="tabs-grid"></div>
+<p class="muted">IO: telemetria autorizada somente leitura. Extensão Chrome instalada uma única vez em chrome_extension/. World: apenas nome da aba, sem capturar dados privados, automação ou interagir com o jogo.</p>
+</section>
 <section class="metrics" aria-label="Resumo dos jogos">
 <article class="game"><div class="game-top"><div class="game-icon">W</div><div><h2>Poke Idle World</h2><p>Modo: análise somente leitura</p></div></div>
 <div class="values"><div><small>XP por hora</small><strong data-field="world:xp_per_hour">—</strong></div>
@@ -45,9 +57,20 @@
 <div id="world-capture-results" class="world-results" aria-live="polite"></div>
 <div class="muted">Para contas sem VIP, as escolhas são apenas sugestões para lançar manualmente no jogo. Nenhum clique, automação, extensão, login ou acesso ao Poke Idle World. Requer dados fornecidos por você. Auto-Catch oficial continua exclusivo VIP.</div>
 </section>
+<section class="panel" aria-label="IVs e poder do PokeGrid">
+<p class="eyebrow">IVS · POKEGRID · CALCULO LOCAL</p>
+<h3>Projeções dos seus Pokémon</h3>
+<p id="world-ivs-banner" class="muted" role="status">Aguardando valores manuais...</p>
+<div id="world-ivs-results" class="world-results"></div>
+<div class="muted">Fórmulas do PokeGrid sob licença MIT. Não acessa contas do World e não inventa IVs.</div>
+</section>
 <section class="panel finance" aria-label="Livro-caixa financeiro">
 <p class="eyebrow">DINHEIRO REAL · LIVRO-CAIXA LOCAL</p><h3>Resultado comprovável por conta</h3>
 <p id="finance-banner" class="muted">Carregando configuração financeira…</p>
+<label for="finance-account-select" class="muted">Conta cadastrada (IO):</label>
+<select id="finance-account-select" class="account-select" aria-label="Selecionar conta para livro-caixa">
+<option value="">Selecione uma conta cadastrada</option>
+</select>
 <div class="values finance-values"><div><small>Vendas concluídas</small><strong data-finance="completed_sales">—</strong></div>
 <div><small>Gems líquidas de vendas</small><strong data-finance="completed_sale_net_gems">—</strong></div>
 <div><small>Saques solicitados</small><strong data-finance="withdrawal_requests">—</strong></div>
