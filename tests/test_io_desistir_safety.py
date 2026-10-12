@@ -1,5 +1,6 @@
 """Regressão após perda real de 549 XP por 'Desistir'. Somente estados fictícios."""
 import unittest
+from time import time
 
 from app.io_action_engine import (
     Engine, ActionRequest, ObservedIO,
@@ -10,10 +11,10 @@ from app.io_operation_planner import plan_farm
 
 
 def observation(*, farming=False, session_farming=False,
-                scene="hunt", defeated=False, xp=5490, hunt="h1"):
+                scene="hunt", defeated=False, xp=5490, hunt="h1", when=None):
     return ObservedIO("io", "perfil", "conta", hunt_id=hunt,
                       farming=farming, scene=scene, team_defeated=defeated,
-                      trainer_xp=xp, session_farming=session_farming)
+                      trainer_xp=xp, session_farming=session_farming, observed_at=when)
 
 
 def command(kind="select_hunt", target="h2"):
@@ -25,12 +26,19 @@ class LossyStopRegressionTests(unittest.TestCase):
         self.assertEqual(reconcile_farm_state([observation()])["status"],"unknown")
 
     def test_identical_hud_and_session_stopped_stable(self):
-        frames=[observation(),observation()]
+        now=time()
+        frames=[observation(when=now-3),observation(when=now)]
         self.assertEqual(reconcile_farm_state(frames)["status"],"stopped_stable")
 
+    def test_identical_timestamp_is_not_two_real_observations(self):
+        now=time()
+        frames=[observation(when=now),observation(when=now)]
+        self.assertEqual(reconcile_farm_state(frames)["status"],"unknown")
+
     def test_stable_active_not_permission_to_switch(self):
-        frames=[observation(farming=True,session_farming=True),
-                observation(farming=True,session_farming=True)]
+        now=time()
+        frames=[observation(farming=True,session_farming=True,when=now-3),
+                observation(farming=True,session_farming=True,when=now)]
         self.assertEqual(reconcile_farm_state(frames)["status"],"active_stable")
 
     def test_centre_with_stale_session_requires_recovery(self):
