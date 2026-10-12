@@ -1,0 +1,34 @@
+'use strict';
+const assert = require('node:assert/strict');
+const cp = require('node:child_process');
+const path = require('node:path');
+const root = path.resolve(__dirname,'..');
+const iv = require('../vendor/pokegrid/iv-math.js');
+const cli = require('../tools/pokegrid_iv_cli.js');
+assert.equal(iv.projectStat(80,10,100,1,'atk'),100,'IV formula MIT');
+assert.equal(iv.projectStat(80,10,100,1,'hp'),100);
+assert.equal(iv.projectStat(80,10,0,1,'atk'),null);
+const sample = require('../examples/pokegrid_iv_demo.json');
+const result = cli.evaluate(sample);
+assert.equal(result.game,'world');
+assert.equal(result.source,'demo');
+assert.equal(result.pokemon.length,1);
+assert.equal(result.pokemon[0].projections.length,3);
+assert.equal(result.pokemon[0].projections[0].iv_exact,true);
+assert.equal(result.pokemon[0].projections[2].level,200);
+assert.ok(result.pokemon[0].projections[2].power > result.pokemon[0].projections[0].power);
+assert.equal(result.pokemon[0].projections[0].iv_source,'individual');
+assert.throws(()=>cli.evaluate({...sample,game:'io'}),/específico/);
+assert.throws(()=>cli.evaluate({...sample,source:'observed'}),/Origem/);
+assert.throws(()=>cli.evaluate({...sample,pokemon:[{...sample.pokemon[0],password:'abc'}]}),/sensível/);
+assert.throws(()=>cli.evaluate({...sample,profile_id:'abc@example.org'}),/apelido/);
+assert.throws(()=>cli.evaluate({...sample,pokemon:[sample.pokemon[0],sample.pokemon[0]]}),/duplicado/);
+assert.throws(()=>cli.evaluate({...sample,pokemon:[{...sample.pokemon[0],ivs:{hp:99}}]}),/ivs/);
+assert.throws(()=>cli.safeLocalFile('../.env'),/somente JSON/);
+const execution=cp.spawnSync(process.execPath,
+ ['tools/pokegrid_iv_cli.js','examples/pokegrid_iv_demo.json'],
+ {cwd:root,encoding:'utf8',timeout:4000});
+assert.equal(execution.status,0,execution.stderr);
+assert.equal(JSON.parse(execution.stdout).source,'demo');
+assert.ok(!execution.stdout.includes('token'));
+console.log('OK: IV PokeGrid MIT validado offline, sem leitura ou execução no World');

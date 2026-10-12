@@ -7,18 +7,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from app.financial_ledger import FinancialLedger
 from app.lab import aggregate, load_sessions
+from app.world_pokegrid_report import analyze_file
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / "public"
 
 def start(csv_path: Path, port: int, ledger_path: Path | None = None,
-          finance_identity: tuple[str, str, str] | None = None) -> None:
+          finance_identity: tuple[str, str, str] | None = None,
+          world_report_path: Path | None = None) -> None:
     if not 1 <= port <= 65535:
         raise ValueError("Porta inválida")
     if (ledger_path is None) != (finance_identity is None):
         raise ValueError("Ledger e identidade financeira devem ser informados juntos")
     if ledger_path is not None and not ledger_path.is_file():
         raise ValueError("Ledger financeiro não encontrado")
+    if world_report_path is not None and not world_report_path.is_file():
+        raise ValueError("Relatório manual World não encontrado")
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802
@@ -39,6 +43,22 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
                     self.wfile.write(payload)
                 except (OSError, ValueError, KeyError) as error:
                     self.send_error(422, "CSV inválido: " + str(error))
+                return
+            if path == "/api/world-pokegrid":
+                try:
+                    report = ({"configured": True, "report": analyze_file(world_report_path)}
+                              if world_report_path is not None
+                              else {"configured": False, "reason":
+                                    "Somente dados manuais; use --world-report data/world_snapshots.json"})
+                    payload = json.dumps(report, ensure_ascii=False).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (OSError, ValueError, KeyError) as error:
+                    self.send_error(422, "Relatório World inválido: " + str(error))
                 return
             if path == "/api/finance":
                 if ledger_path is None or finance_identity is None:
@@ -86,6 +106,8 @@ def main() -> None:
     parser.add_argument("--finance-game", choices=("io", "world"))
     parser.add_argument("--finance-profile")
     parser.add_argument("--finance-account")
+    parser.add_argument("--world-report", type=Path,
+                        help="JSON manual World para análise PokeGrid offline")
     args = parser.parse_args()
     fields = (args.finance_game, args.finance_profile, args.finance_account)
     if any(fields) and not all(fields):
@@ -93,7 +115,8 @@ def main() -> None:
     if bool(args.ledger) != all(fields):
         parser.error("--ledger e identidade financeira devem ser informados juntos")
     start(args.csv.resolve(), args.port, args.ledger.resolve() if args.ledger else None,
-          fields if all(fields) else None)
+          fields if all(fields) else None,
+          args.world_report.resolve() if args.world_report else None)
 
 if __name__ == "__main__":
     main()

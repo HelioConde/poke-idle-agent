@@ -43,6 +43,14 @@ jobs:
           python -m app.browser_probe --help
           python -m app.tab_registry --help
           python -c "from app.win_capture import find_windows; print('Windows capturaveis:', find_windows('io'))"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar IV PokeGrid offline também no Windows
+        shell: cmd
+        run: |
+          node tests/test_pokegrid_iv.js
+          node tools/pokegrid_iv_cli.js examples/pokegrid_iv_demo.json > NUL
       - name: Evitar regressao de blocos IF com parenteses
         shell: pwsh
         run: |
@@ -66,6 +74,10 @@ jobs:
           node --check chrome_extension/content_io.js
           node tests/test_extension_rules.js
           node tests/test_io_dom.js
+          node --check vendor/pokegrid/iv-math.js
+          node --check tools/pokegrid_iv_cli.js
+          node tests/test_pokegrid_iv.js
+          node tools/pokegrid_iv_cli.js examples/pokegrid_iv_demo.json > /dev/null
       - name: Validar manifesto Chrome MV3
         run: |
           node -e "const m=require('./chrome_extension/manifest.json'); if(m.manifest_version!==3||!m.background.service_worker||!m.content_scripts?.some(c=>c.js.includes('content_io.js')))process.exit(1)"

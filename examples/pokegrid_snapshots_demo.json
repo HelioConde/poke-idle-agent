@@ -1,0 +1,34 @@
+{
+  "game": "world",
+  "source": "demo",
+  "snapshots": [
+    {
+      "profile_id": "perfil-exemplo",
+      "account_id": "conta-exemplo",
+      "pokemon_id": "mon-demo-1",
+      "hunt_id": "hunt-ficticia",
+      "recorded_at": "2026-10-12T10:00:00-03:00",
+      "xp_total": 125000,
+      "gold_total": 15000,
+      "kills_total": 250,
+      "captures_total": 5,
+      "shiny_total": 0,
+      "potions": 50,
+      "pokeballs": 100
+    },
+    {
+      "profile_id": "perfil-exemplo",
+      "account_id": "conta-exemplo",
+      "pokemon_id": "mon-demo-1",
+      "hunt_id": "hunt-ficticia",
+      "recorded_at": "2026-10-12T11:00:00-03:00",
+      "xp_total": 145000,
+      "gold_total": 17500,
+      "kills_total": 300,
+      "captures_total": 7,
+      "shiny_total": 0,
+      "potions": 42,
+      "pokeballs": 96
+    }
+  ]
+}

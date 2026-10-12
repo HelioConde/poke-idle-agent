@@ -30,6 +30,37 @@ class DashboardFinanceTests(unittest.TestCase):
                 time.sleep(.05)
         self.fail("Painel não iniciou")
 
+    def _get_world_report(self, process: subprocess.Popen, port: int) -> dict:
+        for _ in range(30):
+            if process.poll() is not None:
+                self.fail(process.stderr.read())
+            try:
+                with urlopen(f"http://127.0.0.1:{port}/api/world-pokegrid",timeout=1) as response:
+                    return json.loads(response.read())
+            except OSError:
+                time.sleep(.05)
+        self.fail("Painel não iniciou")
+
+    def test_world_pokegrid_disabled_without_report(self):
+        process=self._server(18769)
+        try:
+            report=self._get_world_report(process,18769)
+        finally:
+            self._stop(process)
+        self.assertFalse(report["configured"])
+
+    def test_world_pokegrid_example_is_marked_demo(self):
+        fixture=ROOT/"examples"/"pokegrid_snapshots_demo.json"
+        process=self._server(18770,"--world-report",str(fixture))
+        try:
+            payload=self._get_world_report(process,18770)
+        finally:
+            self._stop(process)
+        self.assertTrue(payload["configured"])
+        self.assertTrue(payload["report"]["is_demo"])
+        self.assertEqual(payload["report"]["groups"][0]["status"],"measured")
+        self.assertIsNone(payload["report"]["revenue_usdt"])
+
     @staticmethod
     def _stop(process: subprocess.Popen) -> None:
         process.terminate()
