@@ -42,7 +42,45 @@ const blankDoc={querySelectorAll(selector){
 }};
 assert.deepEqual(diagnose(blankDoc,"/app"),{
  source:"dom",stats:{},available:false,
- diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0}
+ diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0,
+   xp_candidates:0,xp_ambiguous:false}
 });
 assert.equal(diagnose(blankDoc,"/").diagnostic.status,"landing");
 assert.equal(diagnose(blankDoc,"/news").diagnostic.status,"other_route");
+
+
+// O DOM do jogo pode conter DIV e SPAN duplicando uma mesma barra.
+assert.deepEqual(extractFromLines([
+  "7.346 / 15.400 xp", "7.346 / 15.400 xp", "Nível 19",
+  "+15% XP", "XP+0%"
+]),{level:19,xp_current:7346,xp_max:15400});
+
+// Valores de XP DIFERENTES nunca podem ser escolhidos por ordem ou maior valor.
+assert.deepEqual(extractFromLines([
+  "Nível 19", "7.346 / 15.400 xp", "0 / 100 xp", "+10% XP"
+]),{level:19});
+assert.deepEqual(extractFromLines([
+  "0 / 100 xp", "7.346 / 15.400 xp", "Nível 19"
+]),{level:19});
+// Não confundir bônus, percentuais e strings incoerentes com XP.
+assert.deepEqual(extractFromLines(["+15% XP","XP+0%"]),{});
+assert.deepEqual(extractFromLines(["120 / 100 xp"]),{});
+assert.deepEqual(extractFromLines(["XP: 9.001 / 10.000"]),
+ {xp_current:9001,xp_max:10000});
+
+const doubleXP={querySelectorAll(selector){
+ if(selector==="canvas")return Array(9).fill({});
+ if(selector==="iframe")return [];
+ return [
+  {tagName:"SPAN",childElementCount:0,textContent:"7.346 / 15.400 xp",closest(){return null;}},
+  {tagName:"DIV",childElementCount:2,textContent:"7.346 / 15.400 xp",closest(){return null;}},
+  {tagName:"SPAN",childElementCount:0,textContent:"0 / 100 xp",closest(){return null;}},
+  {tagName:"SPAN",childElementCount:0,textContent:"Nível 19",closest(){return null;}}
+ ];
+}};
+assert.deepEqual(diagnose(doubleXP,"/app"),{
+ source:"dom",stats:{level:19},available:true,
+ diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:4,
+   xp_candidates:2,xp_ambiguous:true}
+});
+console.log("IO XP: formato sufixo identificado e barras concorrentes bloqueadas");
