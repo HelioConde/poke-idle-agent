@@ -117,6 +117,9 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('id="world-ivs-results"', html)
         self.assertIn("Telemetria IO pela extensão, somente leitura", html)
         self.assertNotIn("Capturas passivas com Playwright", html)
+        script = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+        self.assertIn("XP treinador:", script)
+        self.assertIn("origem: treinador confirmada", script)
         with urlopen(self.url("/monitor"), timeout=2) as res:
             monitor = res.read().decode("utf-8")
         self.assertIn("/monitor/registry.js", monitor)

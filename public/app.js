@@ -252,8 +252,15 @@ async function refreshUnifiedTabs() {
         const stats = item.telemetry?.stats || {};
         const xp=(typeof item.xp_per_hour==='number')
           ? item.xp_per_hour.toLocaleString('pt-BR',{maximumFractionDigits:1})+' XP/h'
-          : 'XP/h: não medido';
+          : 'XP/h: aguardando amostras';
+        const trainerXp=(typeof stats.xp_current==='number' && typeof stats.xp_max==='number')
+          ? stats.xp_current.toLocaleString('pt-BR')+' / '+stats.xp_max.toLocaleString('pt-BR')
+          : 'não confirmado';
+        const source=item.observation?.xp_trainer_scoped===true
+          ? 'origem: treinador confirmada'
+          : 'origem do XP: não confirmada';
         paragraph.textContent=xp+' · Nível: '+(stats.level ?? 'desconhecido')+
+          ' · XP treinador: '+trainerXp+' · '+source+
           ' · '+(item.observation?.xp_ambiguous
             ? 'XP ambíguo: '+item.observation.xp_candidates+' barras distintas, sem XP/h'
             : (item.advice?.reason || 'Leitura IO pendente'))+
