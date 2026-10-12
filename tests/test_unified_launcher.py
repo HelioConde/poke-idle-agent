@@ -85,8 +85,8 @@ class IntegrationTests(unittest.TestCase):
     def url(self, path):
         return f"http://127.0.0.1:{self.port}{path}"
 
-    def get(self, path):
-        with urlopen(self.url(path), timeout=2) as res:
+    def get(self, path, timeout=2):
+        with urlopen(self.url(path), timeout=timeout) as res:
             return json.loads(res.read())
 
     def test_single_server_exposes_all_safe_modules(self):
@@ -126,7 +126,9 @@ class IntegrationTests(unittest.TestCase):
             self.assertIn("/api/tabs", res.read().decode("utf-8"))
 
     def test_iv_optional_node_runs_in_same_dashboard(self):
-        ivs = self.get("/api/world-ivs")
+        # A primeira execução do Node no runner Linux pode exceder dois
+        # segundos; a integração ainda precisa falhar em prazo finito.
+        ivs = self.get("/api/world-ivs", timeout=6)
         if shutil.which("node"):
             self.assertTrue(ivs["configured"])
             self.assertEqual(ivs["report"]["source"], "demo")
