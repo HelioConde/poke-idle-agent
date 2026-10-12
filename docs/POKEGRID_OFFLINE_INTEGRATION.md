@@ -64,7 +64,12 @@ Pokémon ativo e hunt para comparação.
 
     copy examples\pokegrid_snapshots_demo.json data\world_snapshots.json
     notepad data\world_snapshots.json
-    py -3 -m app.world_pokegrid_report --file data/world_snapshots.json
+    py -3 -m app.world_pokegrid_report --file data/world_snapshots.json --priority gold
+
+Também há `--priority xp` e `--priority balanced`. Quando houver pelo menos
+duas hunts diferentes, com duas leituras manuais de 30 minutos ou mais cada,
+o programa mostra um ranking **separado por perfil/conta/Pokémon**.
+Nenhuma troca de mapa é executada.
 
 Substitua TODOS os valores fictícios por anotações suas. Troque source=demo
 por source=manual para identificar as medições anotadas de fato.
