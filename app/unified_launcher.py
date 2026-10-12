@@ -9,6 +9,7 @@ Nenhuma transação, login, macro nem bot do World é iniciado.
 """
 from __future__ import annotations
 import argparse
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -24,9 +25,20 @@ DEFAULT_PORT = 8768
 VERSION = 1
 
 
-def available_files(root: Path = ROOT) -> dict:
+def resolve_data_dir(root: Path = ROOT) -> Path:
+    """Pode compartilhar dados PRIVADOS entre worktrees sem copiar ou publicar."""
+    location = os.environ.get("IGA_DATA_DIR")
+    if not location:
+        return root / "data"
+    chosen = Path(location).expanduser()
+    if not chosen.is_absolute():
+        raise ValueError("IGA_DATA_DIR deve ser um caminho absoluto do Windows/PC")
+    return chosen.resolve()
+
+
+def available_files(root: Path = ROOT, data_dir: Path | None = None) -> dict:
     """Nunca copiar exemplos para data/ nem tratá-los como dados reais."""
-    data = root / "data"
+    data = data_dir or resolve_data_dir(root)
     choices = {
         "accounts_path": data / "accounts.json",
         "world_report_path": data / "world_snapshots.json",
@@ -62,20 +74,21 @@ def launch(*, port: int = DEFAULT_PORT, browser: bool = True, root: Path = ROOT)
         if browser:
             webbrowser.open(url)
         return 0
-    data = root / "data"
+    data = resolve_data_dir(root)
     data.mkdir(parents=True, exist_ok=True)
     registry = Registry(
         load_token(data / "tab_registry_token.txt"),
         MemoryStore(data / "agent.sqlite3"),
     )
-    options = available_files(root)
+    options = available_files(root, data)
     print("IDLE GAME AGENT - PAINEL UNIFICADO")
     print("IO: leitura da extensao Chrome, sem comandos de jogo.")
     print("World: dados manuais; sem Auto-Throw, login ou bots externos.")
     print("Livro-caixa: leitura local; nenhum saque, compra ou venda automatica.")
     print("URL: " + url)
     print("Extensao Chrome: carregue chrome_extension/ e emparelhe com a")
-    print("chave local em data/tab_registry_token.txt. NAO a compartilhe.")
+    print("chave local em " + str(data / "tab_registry_token.txt"))
+    print("NAO compartilhe essa chave com outras pessoas.")
     for key, path in options.items():
         print(("[OK] " if path else "[AGUARDANDO] ") + key +
               (": " + path.name if path else " (nenhum arquivo privado configurado)"))
