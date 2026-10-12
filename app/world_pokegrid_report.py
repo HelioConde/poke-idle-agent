@@ -79,7 +79,38 @@ def compare_pair(before: dict, after: dict) -> dict:
             result["warnings"].append(f"{resource}: até 1h restante se o consumo continuar")
     return result
 
-def analyze(payload: dict) -> dict:
+def rank_manual_hunts(groups: list[dict], priority: str = "balanced") -> list[dict]:
+    """Rankings por perfil/conta/Pokémon, nunca dados entre perfis."""
+    if priority not in ("xp", "gold", "balanced"):
+        raise ValueError("Prioridade inválida")
+    by_identity = defaultdict(list)
+    for group in groups:
+        if group["status"] != "measured":
+            continue
+        key = (group["profile_id"],group["account_id"],group["pokemon_id"])
+        by_identity[key].append(group)
+    ranked = []
+    for (profile,account,pokemon),rows in sorted(by_identity.items()):
+        if len(rows) < 2:
+            continue
+        max_xp=max(0.0,*(r["xp_per_hour"] for r in rows))
+        max_gold=max(0.0,*(r["net_gold_per_hour"] for r in rows))
+        scores=[]
+        for row in rows:
+            x=row["xp_per_hour"]/max_xp if max_xp else 0.0
+            g=max(0,row["net_gold_per_hour"])/max_gold if max_gold else 0.0
+            score=x if priority=="xp" else g if priority=="gold" else (x+g)/2
+            scores.append({"hunt_id":row["hunt_id"],"score":round(score,4),
+                           "xp_per_hour":row["xp_per_hour"],
+                           "net_gold_per_hour":row["net_gold_per_hour"]})
+        scores.sort(key=lambda row:(row["score"],row["hunt_id"]),reverse=True)
+        ranked.append({"profile_id":profile,"account_id":account,
+                       "pokemon_id":pokemon,"priority":priority,"hunts":scores,
+                       "note":"Somente dados anotados; nenhuma hunt foi executada pelo agente."})
+    return ranked
+
+
+def analyze(payload: dict, priority: str = "balanced") -> dict:
     if not isinstance(payload,dict) or set(payload) != {"game","source","snapshots"}:
         raise ValueError("Formato do relatório inválido")
     if payload["game"] != "world":
@@ -104,19 +135,21 @@ def analyze(payload: dict) -> dict:
                         "samples":len(rows),**comparison})
     return {"game":"world","mode":"manual_offline","source":payload["source"],
             "is_demo":payload["source"]=="demo","groups":results,
+            "rankings":rank_manual_hunts(results, priority),
             "revenue_usdt":None,
             "note":"XP/gold/estoques medidos a partir de anotação manual; não equivale a ganhos reais, nem autoriza automação."}
 
-def analyze_file(path: Path) -> dict:
+def analyze_file(path: Path, priority: str = "balanced") -> dict:
     if path.stat().st_size > 1024*1024:
         raise ValueError("Arquivo maior que 1 MB")
-    return analyze(json.loads(path.read_text(encoding="utf-8-sig")))
+    return analyze(json.loads(path.read_text(encoding="utf-8-sig")), priority)
 
 def main():
     parser=argparse.ArgumentParser(description="PokeGrid Analytics: manual, sem automação do World")
     parser.add_argument("--file",required=True,type=Path)
+    parser.add_argument("--priority",choices=("xp","gold","balanced"),default="balanced")
     args=parser.parse_args()
-    print(json.dumps(analyze_file(args.file),ensure_ascii=False,indent=2))
+    print(json.dumps(analyze_file(args.file,args.priority),ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
     main()
