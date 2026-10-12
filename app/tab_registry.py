@@ -219,27 +219,65 @@ class Registry:
                     continue
                 reading = tab.get("telemetry")
                 stats = (reading or {}).get("stats") or {}
-                key = (profile_id, tab["tab_id"])
+                # A taxa representa a aba atual, NÃO uma identidade de conta
+                # confirmada. Nunca reaproveitar amostras entre janelas.
+                key = (profile_id, tab["window_id"], tab["tab_id"])
                 last = self.samples.get(key)
                 observation = tab.get("observation", {})
                 scope_verified = (observation.get("xp_trainer_scoped") is True and
                                   observation.get("telemetry_protocol") == 2 and
                                   observation.get("reader_version") == "trainer-xp-scoped-v1" and
                                   observation.get("content_state") == "responded")
-                rate = last.get("rate") if last else None
-                if not scope_verified or "xp_current" not in stats:
-                    rate = None
+                valid_xp = (scope_verified and type(stats.get("level")) is int and
+                            type(stats.get("xp_current")) in (int, float) and
+                            type(stats.get("xp_max")) in (int, float))
+                rate = None
+                windows = {}
+                if not valid_xp:
                     self.samples.pop(key, None)
-                    last = None
-                if stats:
+                else:
+                    # Troca de nível, barra, queda de XP ou intervalo sem
+                    # leituras válidas encerra a janela anterior imediatamente.
+                    previous = last["stats"] if last else None
+                    invalid_transition = (last is not None and (
+                        now - last["seen"] > EXPIRY_SECONDS or
+                        previous.get("level") != stats["level"] or
+                        previous.get("xp_max") != stats["xp_max"] or
+                        stats["xp_current"] < previous["xp_current"]))
+                    if invalid_transition:
+                        self.samples.pop(key, None)
+                        last = None
                     if last and now - last["seen"] >= 5:
                         rate = measured_xp_per_hour(
                             last["stats"], stats, now - last["seen"])
-                    if not last or now - last["seen"] >= 5:
+                    elif last:
+                        rate = last["rate"]
+                    if not last:
+                        self.samples[key] = {"seen": now, "stats": dict(stats),
+                                             "rate": None, "history": [
+                                                 (now, stats["xp_current"])]}
+                    elif now - last["seen"] >= 5:
+                        # Buffer estritamente numérico e temporário em RAM,
+                        # com limite de tamanho, sem credenciais ou conta.
+                        history = [(t, xp) for t, xp in last["history"]
+                                   if now - t <= 3600]
+                        history.append((now, stats["xp_current"]))
                         self.samples[key] = {
-                            "seen": now, "stats": stats, "rate": rate}
+                            "seen": now, "stats": dict(stats), "rate": rate,
+                            "history": history[-1024:]}
+                    readings = self.samples[key]["history"]
+                    for label, duration in (("5m", 300), ("15m", 900),
+                                            ("60m", 3600)):
+                        eligible = [(t, xp) for t, xp in readings
+                                    if now - t <= duration]
+                        if eligible and now - eligible[0][0] >= duration * 0.8:
+                            elapsed = now - eligible[0][0]
+                            delta = stats["xp_current"] - eligible[0][1]
+                            if delta >= 0 and elapsed >= 5:
+                                windows[label] = round(delta * 3600 / elapsed, 2)
                 tab["xp_per_hour"] = rate
-                tab["advice"] = dry_run_decision(stats, rate)
+                tab["xp_windows"] = windows
+                tab["advice"] = dry_run_decision(stats, windows.get("5m", rate))
                 if self.memory:
                     self.memory.record_observation(
                         profile_id=profile_id,
@@ -249,6 +287,14 @@ class Registry:
                                "observation": tab.get("observation")},
                         decision=tab["advice"],
                     )
+            # Abas removidas ou navegando fora de /app não devem manter
+            # leituras capazes de produzir uma taxa na próxima sessão.
+            active_io = {(profile_id, tab["window_id"], tab["tab_id"])
+                         for tab in cleaned if tab["game"] == "io"
+                         and tab.get("route") == "app"}
+            for key in list(self.samples):
+                if key[0] == profile_id and key not in active_io:
+                    del self.samples[key]
             self.records[profile_id] = {
                 "profile_label": label.strip() or "Perfil sem nome",
                 "tabs": cleaned, "seen": now,
