@@ -41,6 +41,15 @@ class MemoryStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.history("profile-a", "10:20", limit=0)
 
+    def test_rejects_sensitive_or_oversized_values(self):
+        for state in ({"token": "hidden"}, {"nested": {"email": "x@y"}},
+                      {"text": "x" * 20_000}):
+            with self.subTest(state=state.keys()), self.assertRaises(ValueError):
+                self.store.record_observation(
+                    profile_id="profile-a", game="io", session_id="10:20",
+                    state=state,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

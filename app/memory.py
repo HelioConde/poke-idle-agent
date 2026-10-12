@@ -7,6 +7,7 @@ que uma reinicialização do monitor não misture históricos de perfis.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 from contextlib import closing
@@ -47,8 +48,26 @@ class MemoryStore:
             return None
         if not isinstance(value, dict):
             raise ValueError("Registro de memória inválido")
-        return json.dumps(value, ensure_ascii=False, sort_keys=True,
-                          separators=(",", ":"))
+        def validate(item: object) -> None:
+            if isinstance(item, dict):
+                for key, nested in item.items():
+                    if not isinstance(key, str):
+                        raise ValueError("Chave de memória inválida")
+                    if re.search(r"(?:token|cookie|password|secret|authorization|email)",
+                                 key, re.IGNORECASE):
+                        raise ValueError("Dado sensível não pode ser persistido")
+                    validate(nested)
+            elif isinstance(item, list):
+                for nested in item:
+                    validate(nested)
+            elif not isinstance(item, (str, int, float, bool, type(None))):
+                raise ValueError("Valor de memória inválido")
+        validate(value)
+        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True,
+                             separators=(",", ":"))
+        if len(encoded.encode("utf-8")) > 16_384:
+            raise ValueError("Registro de memória grande demais")
+        return encoded
 
     def record_observation(self, *, profile_id: str, game: str,
                            session_id: str, state: dict,
