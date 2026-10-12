@@ -13,12 +13,22 @@
 - Decisões explicáveis em dry-run e executor com pausa, limite e parada de emergência.
 - Simulador local de observe → plan → act → verify.
 - Testes Python, JavaScript e verificações de launchers Windows.
+- Integração em worktree dos módulos `io_action_engine` e
+  `io_operation_planner`, sem substituir os módulos locais de economia,
+  livro-caixa, controle, política e memória.
+- Validação real somente-leitura do DOM autenticado em `/app`; o relatório
+  com fonte, limites e estado das ações está em `IO_REAL_VALIDATION.md`.
 
 ## Bloqueado por validação externa
 
-- Confirmar os seletores do HUD autenticado de `https://pokeidle.io/app` e verificar a
-  leitura em segundo plano. Sem essa evidência, o adaptador continua reportando DOM/Canvas
-  vazio em vez de fabricar métricas.
+- Validar a leitura da extensão em segundo plano/minimizada. A leitura manual
+  autenticada confirmou DOM sem Canvas/iframe na aba ativa, mas não prova o
+  comportamento de renderização em abas suspensas.
+- Implementar e validar um adaptador Chrome real por ação. O código integrado
+  possui somente `FakeIOAdapter`; `verified_actions` não é prova suficiente
+  para habilitar o modo live.
+- A primeira troca de hunt está aguardando autorização humana específica. O
+  farm estava ativo na observação e deve ser parado/comprovado antes de trocar.
 - Os termos públicos do IO, atualizados em 30/09/2026, permitem automação no jogo e
   no Market. Ainda falta validar em conta cada controle, pré-condição e resultado antes
   de habilitar ação real. A lista de execução real continua vazia.
