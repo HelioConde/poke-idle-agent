@@ -46,6 +46,21 @@ foi marcado como sucesso**. O mapa permaneceu aberto, e o DOM também expôs
 o analisador da hunt atualmente inspecionada (Graveler), com estimativas e
 drops; isso não foi tratado como confirmação de uma troca.
 
+## Teste operacional autorizado — estado inconsistente após parada
+
+Em uma autorização posterior, o controle `Desistir` foi confirmado uma única
+vez depois de expor o custo de **549 XP**. A interface então apresentou
+`Centro Pokémon · Cerulean`, o botão `Curar equipe` e a mensagem `Seu time
+está no chão!`, sinais de que o combate foi interrompido. Porém, o painel de
+sessão simultaneamente ainda informava `caçando`. Pela política de falha
+fechada, este conflito torna o estado do farm desconhecido. Não foi executada
+nenhuma seleção de hunt, reinício do farm ou segunda tentativa.
+
+Resultado desse teste: **falhou o critério composto** (não há comprovação
+consistente de farm parado; hunt não foi alterada). A correção necessária é
+modelar separadamente o estado transitório do Centro/derrota e esperar uma
+observação estável antes de liberar seleção.
+
 ## Catálogo de ação — situação atual
 
 | Ação | Interface identificada | Executor | Validação real |
