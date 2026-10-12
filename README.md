@@ -370,3 +370,21 @@ Se as métricas forem vazias, a coluna **Diagnóstico** diferenciará:
 
 Mesmo quando detecta Canvas, o coletor ainda não lê pixels de abas inativas
 nem opera a interface do jogo. Não publique capturas com dados privados.
+
+
+### Análise de XP/h por janela (somente leitura)
+
+O monitor IO exibe a taxa curta e médias de 5, 15 e 60 minutos quando
+recebe tempo de amostragem suficiente (no mínimo 80% de cada janela).
+Não apresenta uma média de 60 min com poucos segundos de dados.
+O histórico em RAM é separado por perfil, janela e aba e reiniciado após
+troca de nível, redução de XP, troca de barra ou perda de sincronização.
+Ainda não existe confirmação automática da identidade do treinador;
+por isso essas médias são observações **por aba**, não resultados atribuídos
+de forma definitiva a uma conta ou hunt. Várias abas IO aparecem
+separadamente na seção de auditoria. Nenhum comando no jogo é executado.
+
+As referências externas estudadas foram Launcher Alt: PokeIdle,
+Hunt Atlas e Rebosteio Launcher (detalhes em
+`docs/IO_CONTROLS_AUDIT.md`). A extensão não incorpora executores
+dessas bibliotecas.
