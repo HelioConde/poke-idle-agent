@@ -216,13 +216,18 @@ class LiveGateTests(unittest.TestCase):
         self.assertEqual(outcome["status"],"blocked")
         self.assertFalse(adapter.observe().farming)
 
-    def test_specific_approval_one_time(self):
+    def test_human_approval_cannot_override_missing_static_evidence(self):
         adapter=self.ValidatedAdapter()
         engine=Engine()
         a=req("start_farm","specific")
-        token=engine.approvals.issue(a)  # Tests emulate direct human approval.
-        self.assertEqual(engine.execute(a,adapter,"live",token)["status"],"verified")
-        self.assertEqual(engine.execute(a,adapter,"live",token)["status"],"blocked")
+        token=engine.approvals.issue(a)  # Simula confirmacao humana.
+        outcome=engine.execute(a,adapter,"live",token)
+        self.assertEqual(outcome["status"],"blocked")
+        self.assertIn("prova local auditada", outcome["message"])
+        self.assertFalse(adapter.observe().farming)
+        # Tokens seguem vinculados ao pedido exato e sao consumiveis uma vez.
+        self.assertTrue(engine.approvals.consume(token, a))
+        self.assertFalse(engine.approvals.consume(token, a))
 
     def test_approval_not_transferable(self):
         adapter=self.ValidatedAdapter()
