@@ -95,14 +95,20 @@ DIAGNOSTIC_STATUSES = frozenset({
     "landing", "other_route", "reader_unavailable", "no_matches", "metrics"
 })
 
+XP_REASONS = frozenset({
+    "trainer_xp_scoped", "trainer_panel_missing", "trainer_level_missing",
+    "trainer_xp_missing", "trainer_xp_ambiguous", "not_on_app", "unknown",
+})
+
 
 def sanitize_observation(value: object) -> dict:
     """Aceita somente status e contagens. Nada de URL, HTML ou identificadores."""
     basic = {"status", "canvas", "iframes", "candidates"}
     legacy_extra = {"xp_candidates", "xp_ambiguous"}
-    current_extra = legacy_extra | {"xp_trainer_scoped"}
+    scoped_extra = legacy_extra | {"xp_trainer_scoped"}
+    current_extra = scoped_extra | {"xp_reason"}
     if (not isinstance(value, dict) or not basic.issubset(value) or
-            (set(value) - basic) not in (set(), legacy_extra, current_extra)):
+            (set(value) - basic) not in (set(), legacy_extra, scoped_extra, current_extra)):
         raise ValueError("Diagnóstico inválido")
     if not isinstance(value["status"], str) or value["status"] not in DIAGNOSTIC_STATUSES:
         raise ValueError("Status de diagnóstico inválido")
@@ -119,4 +125,9 @@ def sanitize_observation(value: object) -> dict:
                 (scoped and value["xp_candidates"] == 0) or
                 value["xp_ambiguous"] != (value["xp_candidates"] > 1 and not scoped)):
             raise ValueError("Contagem de XP inválida")
+        if "xp_reason" in value and (
+                not isinstance(value["xp_reason"], str) or
+                value["xp_reason"] not in XP_REASONS or
+                (scoped and value["xp_reason"] != "trainer_xp_scoped")):
+            raise ValueError("Motivo de XP inválido")
     return dict(value)

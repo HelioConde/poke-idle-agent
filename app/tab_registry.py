@@ -31,7 +31,7 @@ body{max-width:1320px;padding:25px;margin:auto}h1{font-size:clamp(25px,4vw,40px)
 p{color:#aebad0;line-height:1.6}.card{border:1px solid #354461;background:#15213a;
 border-radius:14px;padding:20px;margin:12px 0}small{color:#92a5c2}
 .table-scroll{overflow-x:auto;max-width:100%}
-table{border-collapse:collapse;width:100%;min-width:1100px;font-size:13px}
+table{border-collapse:collapse;width:100%;min-width:1240px;font-size:13px}
 th,td{padding:12px;text-align:left;border-bottom:1px solid #34445c}
 th{color:#b5c5e4;white-space:nowrap}td{overflow-wrap:break-word}
 .tag{background:#344569;border-radius:7px;padding:3px 8px;display:inline-block}
@@ -42,9 +42,9 @@ numéricas do HUD. Não captura credenciais, screenshots ou executa ações.</p>
 <div class="card"><b id="summary">Aguardando extensão...</b>
 <p id="hint">Aguardando primeira sincronização da extensão.</p></div>
 <div class="card"><div class="table-scroll"><table><thead><tr><th>Perfil</th><th>Jogo</th>
-<th>Aba</th><th>Ativa</th><th>Nível</th><th>XP/h</th><th>HP</th>
+<th>Aba</th><th>Ativa</th><th>Nível</th><th>XP atual/máx.</th><th>XP/h</th><th>HP</th>
 <th>Coins</th><th>Gems</th><th>Diagnóstico</th><th>Decisão simulada</th><th>Atualizada</th></tr></thead>
-<tbody id="rows"><tr><td colspan="12">Aguardando...</td></tr></tbody></table></div>
+<tbody id="rows"><tr><td colspan="13">Aguardando...</td></tr></tbody></table></div>
 <p>XP/h só é calculado quando o DOM fornece duas amostras válidas no mesmo nível.
 O coletor não lê Canvas, inventário privado ou dados da sessão.</p></div>
 <script src="/app.js"></script>
@@ -68,7 +68,7 @@ try{
      ' Este painel mostra somente metadados; não captura imagens do jogo.'
    : 'Nenhum perfil sincronizado. Instale a extensão da pasta chrome_extension e informe a chave exibida no terminal.';
  if(!data.tabs.length){const tr=document.createElement('tr');
- const td=document.createElement('td');td.colSpan=12;td.textContent='Nenhuma aba sincronizada.';
+ const td=document.createElement('td');td.colSpan=13;td.textContent='Nenhuma aba sincronizada.';
  tr.appendChild(td);body.appendChild(tr);}
  for(const row of data.tabs){
   const tr=document.createElement('tr');
@@ -76,6 +76,8 @@ try{
   const read=(value)=>typeof value==='number'?value.toLocaleString('pt-BR'):'—';
   const hp=typeof stats.hp_current==='number'
     ?read(stats.hp_current)+(typeof stats.hp_max==='number'?'/'+read(stats.hp_max):''):'—';
+  const xp=typeof stats.xp_current==='number'
+    ?read(stats.xp_current)+(typeof stats.xp_max==='number'?'/'+read(stats.xp_max):''):'Aguardando amostras';
   const obs=row.observation||{};
   const explanations={
     landing:"Página inicial. Clique em Jogar Grátis para entrar em /app.",
@@ -95,11 +97,20 @@ try{
       ' barras diferentes no DOM; nenhuma foi selecionada.';
   } else if(row.game==='io' && obs.xp_trainer_scoped===true) {
     diagnostic='XP do treinador identificado em tr-dados; Pokémon separado.';
+  } else if(row.game==='io' && obs.xp_reason){
+    const reasons={
+      trainer_panel_missing:'Quadro tr-dados não localizado; XP/h bloqueado.',
+      trainer_level_missing:'Nível do treinador ausente no quadro; XP/h bloqueado.',
+      trainer_xp_missing:'Barra de XP do treinador ausente ou incompleta; XP/h bloqueado.',
+      trainer_xp_ambiguous:'Mais de uma barra no quadro do treinador; XP/h bloqueado.',
+      unknown:'Extensão sem diagnóstico de origem; recarregue a versão 0.2.1.'
+    };
+    diagnostic=reasons[obs.xp_reason]||diagnostic;
   }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
   for(const value of [row.profile_label,row.game==='io'?'Poke Idle IO':'Poke Idle World',
-    row.title,row.active?'Sim':'Não',read(stats.level),read(row.xp_per_hour),
+    row.title,row.active?'Sim':'Não',read(stats.level),xp,read(row.xp_per_hour),
     hp,read(stats.coins),read(stats.gems),diagnostic,advice,row.age_seconds+'s atrás']){
    const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
   }body.appendChild(tr);

@@ -43,7 +43,8 @@ const blankDoc={querySelectorAll(selector){
 assert.deepEqual(diagnose(blankDoc,"/app"),{
  source:"dom",stats:{},available:false,
  diagnostic:{status:"no_matches",canvas:2,iframes:1,candidates:0,
-   xp_candidates:0,xp_ambiguous:false,xp_trainer_scoped:false}
+   xp_candidates:0,xp_ambiguous:false,xp_trainer_scoped:false,
+   xp_reason:"trainer_panel_missing"}
 });
 assert.equal(diagnose(blankDoc,"/").diagnostic.status,"landing");
 assert.equal(diagnose(blankDoc,"/news").diagnostic.status,"other_route");
@@ -79,9 +80,10 @@ const doubleXP={querySelectorAll(selector){
  ];
 }};
 assert.deepEqual(diagnose(doubleXP,"/app"),{
- source:"dom",stats:{level:19},available:true,
- diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:4,
-   xp_candidates:2,xp_ambiguous:true,xp_trainer_scoped:false}
+ source:"dom",stats:{},available:false,
+ diagnostic:{status:"no_matches",canvas:9,iframes:0,candidates:4,
+   xp_candidates:2,xp_ambiguous:true,xp_trainer_scoped:false,
+   xp_reason:"trainer_level_missing"}
 });
 console.log("IO XP: formato sufixo identificado e barras concorrentes bloqueadas");
 
@@ -117,8 +119,31 @@ assert.deepEqual(diagnose(scopedHud,"/app"),{
   source:"dom",available:true,
   stats:{level:19,xp_current:7346,xp_max:15400},
   diagnostic:{status:"metrics",canvas:9,iframes:0,candidates:5,
-    xp_candidates:2,xp_ambiguous:false,xp_trainer_scoped:true}
+    xp_candidates:2,xp_ambiguous:false,xp_trainer_scoped:true,
+    xp_reason:"trainer_xp_scoped"}
 });
+
+// O HUD é atualizado sem recarregar a página. A barra ativa do Pokémon pode
+// mudar entre leituras, mas a telemetria deve continuar vindo somente do
+// quadro .tr-dados do treinador.
+let trainerXp = "7.346 / 15.400 xp";
+let pokemonXp = "0 / 100 xp";
+const dynamicPanel = {querySelectorAll(selector) {
+  if (selector.includes("span,div,p")) return [sampleNode("Nv 19"),
+    sampleNode(trainerXp), sampleNode(trainerXp, "DIV", 2)];
+  return [];
+}};
+const dynamicHud = {querySelectorAll(selector) {
+  if (selector === ".tr-dados") return [dynamicPanel];
+  if (selector === "canvas" || selector === "iframe") return [];
+  return [sampleNode("Nv 19"), sampleNode(trainerXp),
+    sampleNode("Oddish Nv 1"), sampleNode(pokemonXp)];
+}};
+assert.equal(diagnose(dynamicHud,"/app").stats.xp_current,7346);
+pokemonXp = "99 / 100 xp";
+assert.equal(diagnose(dynamicHud,"/app").stats.xp_current,7346);
+trainerXp = "7.500 / 15.400 xp";
+assert.equal(diagnose(dynamicHud,"/app").stats.xp_current,7500);
 
 // Proteção: se o quadro do treinador contiver 2 progressões diferentes,
 // nem escolher pelo maior XP nem herdar o XP do Pokemon.

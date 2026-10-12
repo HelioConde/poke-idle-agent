@@ -118,31 +118,46 @@
     return lines;
   }
 
-  function readScopedTrainer(root, globalLevel) {
+  function readScopedTrainer(root) {
     // Observado no IO: barra do TREINADOR em .tr-dados; XP do Pokemon
     // ativo em .ativo-info. Nunca escolher por valor maior ou posicao DOM.
-    if (!root || typeof root.querySelectorAll !== "function") return null;
+    if (!root || typeof root.querySelectorAll !== "function") {
+      return {reading:null, reason:"trainer_panel_missing"};
+    }
+    const panels = root.querySelectorAll(".tr-dados");
+    if (!panels.length) return {reading:null, reason:"trainer_panel_missing"};
     const results = new Map();
-    for (const panel of root.querySelectorAll(".tr-dados")) {
+    let missingLevel = false;
+    let missingXp = false;
+    let ambiguous = false;
+    for (const panel of panels) {
       const lines = collectLines(panel);
       const stats = extractFromLines(lines);
       // Exigir nivel e barra completos dentro do mesmo quadro do treinador.
-      if (stats.level == null || stats.xp_current == null ||
-          stats.xp_max == null) continue;
+      if (stats.level == null) { missingLevel = true; continue; }
+      if (stats.xp_current == null || stats.xp_max == null) {
+        missingXp = true;
+        if (xpPairs(lines).length > 1) ambiguous = true;
+        continue;
+      }
       // Nivel global pode estar vindo do Pokemon; o painel do treinador
       // tem prioridade, mas duas barras no mesmo painel permanecem invalidas.
       const id = [stats.level, stats.xp_current, stats.xp_max].join("/");
       results.set(id, {level:stats.level, current:stats.xp_current,
                        maximum:stats.xp_max});
     }
-    return results.size === 1 ? [...results.values()][0] : null;
+    if (results.size === 1) return {reading:[...results.values()][0], reason:"trainer_xp_scoped"};
+    if (results.size > 1 || ambiguous) return {reading:null, reason:"trainer_xp_ambiguous"};
+    if (missingLevel) return {reading:null, reason:"trainer_level_missing"};
+    return {reading:null, reason:missingXp ? "trainer_xp_missing" : "trainer_xp_missing"};
   }
 
   function inspectDocument(root) {
     const lines = collectLines(root);
     const stats = extractFromLines(lines);
     const xpCandidates = xpPairs(lines).length;
-    const trainer = readScopedTrainer(root, stats.level);
+    const scoped = readScopedTrainer(root);
+    const trainer = scoped.reading;
     // Uma barra unica fora de .tr-dados pode pertencer ao Pokemon.
     // XP/h depende da experiencia do treinador, nunca de XP global solto.
     delete stats.xp_current;
@@ -151,19 +166,31 @@
       stats.level = trainer.level;
       stats.xp_current = trainer.current;
       stats.xp_max = trainer.maximum;
+    } else {
+      // Um nível solto também pode ser do Pokémon. Sem o quadro do treinador
+      // ele não representa uma medição segura da conta.
+      delete stats.level;
     }
-    return {stats, xpCandidates, trainerScoped: Boolean(trainer)};
+    return {stats, xpCandidates, trainerScoped: Boolean(trainer),
+            xpReason:scoped.reason};
   }
 
   function scanDocument(root) {
-    return inspectDocument(root).stats;
+    const report = inspectDocument(root);
+    if (report.trainerScoped) return report.stats;
+    // Mantém o helper de teste útil para métricas não-XP, mas nunca devolve
+    // XP global: fora de .tr-dados pode ser a barra do Pokémon.
+    const legacy = extractFromLines(collectLines(root));
+    delete legacy.xp_current;
+    delete legacy.xp_max;
+    return legacy;
   }
 
   function diagnose(root, path) {
     const onApp = path === "/app" || path.startsWith("/app/");
     const report = onApp ? inspectDocument(root)
-      : {stats:{},xpCandidates:0,trainerScoped:false};
-    const {stats,xpCandidates,trainerScoped} = report;
+      : {stats:{},xpCandidates:0,trainerScoped:false,xpReason:"not_on_app"};
+    const {stats,xpCandidates,trainerScoped,xpReason} = report;
     const count = selector => {
       try { return Math.min(99, root.querySelectorAll(selector).length); }
       catch (_err) { return 0; }
@@ -175,7 +202,8 @@
         candidates:Math.min(3500,count("span,div,p,b,strong,small,label,li")),
         xp_candidates:Math.min(20,xpCandidates),
         xp_ambiguous:xpCandidates>1 && !trainerScoped,
-        xp_trainer_scoped:trainerScoped}};
+        xp_trainer_scoped:trainerScoped,
+        xp_reason:xpReason}};
   }
 
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage && typeof document !== "undefined") {

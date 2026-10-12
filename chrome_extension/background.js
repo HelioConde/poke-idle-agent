@@ -65,7 +65,8 @@ async function observeTab(tab) {
         candidates:bounded(d.candidates,3500),
         xp_candidates:bounded(d.xp_candidates,20),
         xp_ambiguous:d.xp_ambiguous===true,
-        xp_trainer_scoped:d.xp_trainer_scoped===true
+        xp_trainer_scoped:d.xp_trainer_scoped===true,
+        xp_reason:typeof d.xp_reason==="string" ? d.xp_reason.slice(0,48) : "unknown"
       };
     }
   } catch (_ignored) {

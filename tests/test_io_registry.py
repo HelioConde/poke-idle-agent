@@ -58,7 +58,7 @@ class RegistryTelemetryTests(unittest.TestCase):
         data["tabs"][0]["telemetry"]["stats"]["xp_current"] = 200
         with patch("app.tab_registry.time.monotonic", return_value=160):
             reg.ingest(data)
-        row = reg.snapshot()["tabs"][0]
+            row = reg.snapshot()["tabs"][0]
         self.assertNotIn("xp_current", row["telemetry"]["stats"])
         self.assertIsNone(row["xp_per_hour"])
 
@@ -74,7 +74,7 @@ class RegistryTelemetryTests(unittest.TestCase):
         data["tabs"][0]["telemetry"]["stats"]["xp_current"] = 150
         with patch("app.tab_registry.time.monotonic", return_value=160):
             reg.ingest(data)
-        row = reg.snapshot()["tabs"][0]
+            row = reg.snapshot()["tabs"][0]
         self.assertNotIn("xp_current", row["telemetry"]["stats"])
         self.assertIsNone(row["xp_per_hour"])
 

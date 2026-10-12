@@ -120,6 +120,8 @@ class IntegrationTests(unittest.TestCase):
         with urlopen(self.url("/monitor"), timeout=2) as res:
             monitor = res.read().decode("utf-8")
         self.assertIn("/monitor/registry.js", monitor)
+        self.assertIn("XP atual/máx.", monitor)
+        self.assertIn("table-scroll", monitor)
         with urlopen(self.url("/monitor/registry.js"), timeout=2) as res:
             self.assertIn("/api/tabs", res.read().decode("utf-8"))
 
