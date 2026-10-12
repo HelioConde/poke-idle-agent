@@ -287,14 +287,34 @@ async function refreshUnifiedTabs() {
       if(!io){auditStatus.textContent='A extensão ainda não enviou a auditoria somente leitura dos controles.';}
       else {
         const audit=io.io_audit;
-        auditStatus.textContent='Conta/aba vinculada: telemetria atualizada há '+io.age_seconds+'s · farm: '+
-          (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+'.';
+        const mapStatus={open:'Mapa aberto (observado)',closed:'Mapa fechado',unknown:'Mapa ainda não identificado'};
+        const controlLabels={
+          trainer_panel:'Treinador',active_pokemon_panel:'Pokémon ativo',
+          inventory:'Inventário',surrender:'Desistir — proibido',
+          hunt_map:'Botão Mapa',map_dialog:'Janela Mapa',
+          native_capture_until:'Captura até conseguir',
+          native_capture_repeat:'Lançamento contínuo',
+          native_revive:'Revive nativo',native_potion:'Poções nativas',
+          native_return_hunt:'Voltar à hunt (nativo)'
+        };
+        auditStatus.textContent='Telemetria atualizada há '+io.age_seconds+'s · farm: '+
+          (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+
+          ' · '+(mapStatus[audit.map_state]||'Mapa não verificado')+
+          '. Auditoria somente leitura: nenhuma ação autorizada.';
         for(const [name,control] of Object.entries(audit.controls||{})){
           const card=document.createElement('article');card.className='world-sample';
-          const heading=document.createElement('strong');heading.textContent=name.replaceAll('_',' ');
-          const detail=document.createElement('p');detail.textContent=control.policy==='permanently_blocked'
-            ? 'BLOQUEADO permanentemente: risco conhecido de derrota/perda de XP.'
-            : (control.present?'Presente · '+control.policy:'Não auditado/ausente · '+control.policy);
+          const heading=document.createElement('strong');
+          heading.textContent=controlLabels[name]||name.replaceAll('_',' ');
+          const detail=document.createElement('p');
+          if(control.policy==='permanently_blocked'){
+            detail.textContent='BLOQUEADO permanentemente: risco de derrota/perda de XP.';
+          }else{
+            const toggle={on:'ativado no próprio jogo',off:'desativado no próprio jogo',
+                          unknown:'estado não confirmado'};
+            detail.textContent=(control.present?'Detectado':'Não detectado')+
+              ' · apenas leitura'+(control.toggle_state
+              ? ' · '+(toggle[control.toggle_state]||'estado não confirmado'):'');
+          }
           card.append(heading,detail);auditGrid.appendChild(card);
         }
       }
