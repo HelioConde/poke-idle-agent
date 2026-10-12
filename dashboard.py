@@ -25,6 +25,7 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
           *, registry: Registry | None = None,
           accounts_path: Path | None = None,
           ivs_path: Path | None = None,
+          io_measurements_path: Path | None = None,
           open_browser: bool = False) -> None:
     if not 1 <= port <= 65535:
         raise ValueError("Porta inválida")
@@ -305,6 +306,8 @@ def main() -> None:
                         help="JSON manual World para análise PokeGrid offline")
     parser.add_argument("--world-capture", type=Path,
                         help="JSON manual World com contas, Pokébolas e capturas")
+    parser.add_argument("--io-measurements", type=Path,
+                        help="Medições IO manuais para comparação offline de hunts")
     args = parser.parse_args()
     fields = (args.finance_game, args.finance_profile, args.finance_account)
     if any(fields) and not all(fields):
