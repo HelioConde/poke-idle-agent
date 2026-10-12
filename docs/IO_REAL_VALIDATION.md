@@ -81,3 +81,55 @@ parado, abrir uma hunt alternativa desbloqueada e apresentar o controle final
 antes do clique. Só registrar êxito se a observação posterior comprovar a
 hunt alvo. Em qualquer divergência, parar sem repetir o comando.
 
+
+## Remediação do incidente — trava de segurança (branch separada)
+
+**O controle `Desistir` é uma rendição com derrota e penalidade, NÃO uma pausa
+ou um `stop_farm` seguro.** Não usar esse botão novamente como parte da
+rotina de troca de hunt. Não há método alternativo de pausa sem custo
+identificado e validado nesta sessão.
+
+O modal exibiu penalidade de **549 XP**. A leitura registrada de XP do
+treinador caiu de **5.490 para 4.949**, ou **541 XP líquidos observados**.
+Essas quantias não são iguais: pode ter havido outra atualização de XP no
+intervalo, mas a causa da diferença não foi comprovada. Não afirmar
+perda líquida de 549 como se fosse o delta medido.
+
+Mudanças defensivas publicadas separadamente em
+`fix/io-desistir-xp-loss-guard`:
+- Recusar `stop_farm` em modo live no executor, independentemente de o
+  adaptador declarar essa ação como validada; a lista de controle seguro
+  segue vazia.
+- O planejador **não gera `stop_farm`** para troca de hunt ou HP baixo
+  enquanto não existir método de parada seguro.
+- Distinguir sinais de **Centro Pokémon**, **equipe derrotada**, indicador
+  de farm, status do painel de sessão e **XP do treinador**.
+- Bloquear qualquer comando em caso de Centro, derrota, status conflitante
+  ou perda de XP pós-ação.
+- Exigir duas leituras reais da mesma conta, rota/hunt e estado, datadas
+  **2 a 60 segundos** entre si, antes de sequer considerar uma seleção
+  de hunt ou início de farm. Falta de timestamp/sinal = estado desconhecido.
+- Testes de regressão em `tests/test_io_desistir_safety.py`.
+
+**Importante:** as proteções novas ficam no planejador e executor Python.
+Elas não se instalam automaticamente em uma ferramenta de navegador externo
+ou numa sessão Codex já iniciada. Configure qualquer agente/browser com o
+mesmo veto explícito antes de permitir outra interação.
+
+### Procedimento permitido agora: SOMENTE LEITURA
+
+1. Não clicar em Desistir novamente nem selecionar hunt enquanto a equipe
+   estiver no Centro Pokémon ou o painel indicar `caçando` de forma
+   contraditória.
+2. Inspecionar, sem cliques de jogo, duas observações do HUD e do painel
+   de sessão. Conservar origem, timestamp, tela atual, HP, situação da
+   equipe, farm, hunt e XP do treinador em log sanitizado.
+3. Não curar automaticamente; qualquer recuperação deve ser iniciada
+   manualmente e conscientemente pelo titular.
+4. Buscar em documentação/interface um controle genuinamente reversível e
+   sem custo de pausa de hunt. Não inferir que `Desistir` serve.
+5. Somente planejar um **novo** teste com autorização específica após a
+   interface estar coerente, o estado estar estável e as consequências do
+   botão serem conhecidas. Nenhuma autorização anterior se transfere.
+
+**O teste ocorrido continua reprovado e NÃO é autorização para repetição.**
