@@ -93,6 +93,8 @@ try{
   if(row.game==='io' && obs.xp_ambiguous===true){
     diagnostic='XP ambíguo: '+obs.xp_candidates+
       ' barras diferentes no DOM; nenhuma foi selecionada.';
+  } else if(row.game==='io' && obs.xp_trainer_scoped===true) {
+    diagnostic='XP do treinador identificado em tr-dados; Pokémon separado.';
   }
   const advice=row.game==='world'?'Apenas identificação da aba':
     (row.advice?.reason||'Aguardando HUD no DOM');
