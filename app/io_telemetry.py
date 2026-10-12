@@ -104,6 +104,37 @@ TELEMETRY_PROTOCOL_VERSION = 2
 DOM_READER_VERSIONS = frozenset({"trainer-xp-scoped-v1", "unknown"})
 CONTENT_STATES = frozenset({"responded", "unavailable", "outdated", "not_app"})
 
+AUDIT_CONTROLS = frozenset({"trainer_panel", "active_pokemon_panel", "inventory",
+                            "surrender", "hunt_map"})
+AUDIT_POLICIES = frozenset({"read_only", "permanently_blocked", "not_audited"})
+
+
+def sanitize_automation_audit(value: object) -> dict:
+    """Aceita a auditoria fechada de controles, sem texto/HTML nem seletores livres.
+
+    Ela descreve evidência de leitura. Não aprova cliques nem acrescenta
+    controles reais ao registro local independente.
+    """
+    if not isinstance(value, dict) or set(value) != {"route", "farm_state", "controls"}:
+        raise ValueError("Auditoria de controles inválida")
+    if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
+        raise ValueError("Estado da auditoria inválido")
+    controls = value["controls"]
+    if not isinstance(controls, dict) or set(controls) - AUDIT_CONTROLS:
+        raise ValueError("Controles auditados inválidos")
+    cleaned = {}
+    for name, item in controls.items():
+        if not isinstance(item, dict) or set(item) != {"selector", "present", "enabled", "policy"}:
+            raise ValueError("Controle auditado inválido")
+        if item["selector"] not in {None, ".tr-dados", ".ativo-info", "#btn-bolsa", "#eco-desistir"}:
+            raise ValueError("Seletor auditado inválido")
+        if type(item["present"]) is not bool or type(item["enabled"]) is not bool:
+            raise ValueError("Sinal de controle inválido")
+        if item["policy"] not in AUDIT_POLICIES:
+            raise ValueError("Política de controle inválida")
+        cleaned[name] = dict(item)
+    return {"route": value["route"], "farm_state": value["farm_state"], "controls": cleaned}
+
 
 def sanitize_observation(value: object) -> dict:
     """Aceita somente status e contagens. Nada de URL, HTML ou identificadores."""

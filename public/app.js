@@ -279,6 +279,26 @@ async function refreshUnifiedTabs() {
       card.appendChild(paragraph);
       grid.appendChild(card);
     }
+    const auditStatus=document.getElementById('io-automation-status');
+    const auditGrid=document.getElementById('io-automation-grid');
+    if(auditStatus && auditGrid){
+      auditGrid.replaceChildren();
+      const io=payload.tabs.find(item=>item.game==='io' && item.io_audit);
+      if(!io){auditStatus.textContent='A extensão ainda não enviou a auditoria somente leitura dos controles.';}
+      else {
+        const audit=io.io_audit;
+        auditStatus.textContent='Conta/aba vinculada: telemetria atualizada há '+io.age_seconds+'s · farm: '+
+          (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+'.';
+        for(const [name,control] of Object.entries(audit.controls||{})){
+          const card=document.createElement('article');card.className='world-sample';
+          const heading=document.createElement('strong');heading.textContent=name.replaceAll('_',' ');
+          const detail=document.createElement('p');detail.textContent=control.policy==='permanently_blocked'
+            ? 'BLOQUEADO permanentemente: risco conhecido de derrota/perda de XP.'
+            : (control.present?'Presente · '+control.policy:'Não auditado/ausente · '+control.policy);
+          card.append(heading,detail);auditGrid.appendChild(card);
+        }
+      }
+    }
   }catch(error){
     status.textContent='Monitor não iniciado: '+error.message;
     grid.replaceChildren();

@@ -1,6 +1,7 @@
 import math
 import unittest
-from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
+from app.io_telemetry import (dry_run_decision, measured_xp_per_hour, sanitize,
+                              sanitize_observation, sanitize_automation_audit)
 
 class IoTelemetryTests(unittest.TestCase):
     def test_empty_dom_read_is_not_fabricated(self):
@@ -74,3 +75,18 @@ class IoTelemetryTests(unittest.TestCase):
                     "permission_required"):
             self.assertIn(key, rec)
         self.assertEqual(rec["action"], "track_farm")
+
+    def test_automation_audit_is_closed_and_never_approves_control(self):
+        audit = {"route": "app", "farm_state": "active", "controls": {
+            "surrender": {"selector": "#eco-desistir", "present": True,
+                          "enabled": True, "policy": "permanently_blocked"},
+            "hunt_map": {"selector": None, "present": False,
+                         "enabled": False, "policy": "not_audited"},
+        }}
+        self.assertEqual(sanitize_automation_audit(audit), audit)
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({**audit, "html": "<button>"})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({**audit, "controls": {
+                "arbitrary": {"selector": "#anything", "present": True,
+                              "enabled": True, "policy": "read_only"}}})

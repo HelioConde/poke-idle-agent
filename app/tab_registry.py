@@ -11,7 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
+from app.io_telemetry import (dry_run_decision, measured_xp_per_hour, sanitize,
+                              sanitize_observation, sanitize_automation_audit)
 from app.memory import MemoryStore
 
 MAX_BODY = 16384
@@ -193,6 +194,8 @@ class Registry:
                 # mas rejeitamos seus valores de XP para cálculo de XP/h.
                 entry["observation"] = {"status": "legacy_protocol", "canvas": 0,
                                         "iframes": 0, "candidates": 0}
+            if tab["game"] == "io" and "io_audit" in tab:
+                entry["io_audit"] = sanitize_automation_audit(tab["io_audit"])
             if tab["game"] == "io" and "telemetry" in entry:
                 # Nao confiar em XP de extensoes antigas (ou barras do Pokemon).
                 # Somente a leitura comprovada em .tr-dados vale como XP do treinador.

@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const {toNumber, extractFromLines, scanDocument, diagnose} = require("../chrome_extension/content_io.js");
+const {toNumber, extractFromLines, scanDocument, diagnose, readAutomationAudit} = require("../chrome_extension/content_io.js");
 
 assert.equal(toNumber("1.234"), 1234);
 assert.equal(toNumber("1.234,5"), 1234.5);
@@ -164,3 +164,15 @@ const uncertainHud = {...scopedHud,
 assert.deepEqual(scanDocument(uncertainHud), {level:19});
 assert.equal(diagnose(uncertainHud,"/app").diagnostic.xp_ambiguous,true);
 console.log("IO DOM: XP treinador separado de XP Pokemon por tr-dados");
+
+const auditDoc={querySelector(selector){
+  if(selector==="#eco-painel") return {textContent:"SESSÃO caçando"};
+  if(selector===".tr-dados" || selector==="#btn-bolsa" || selector==="#eco-desistir") return {disabled:false};
+  return null;
+}};
+const audit=readAutomationAudit(auditDoc,"/app");
+assert.equal(audit.route,"app");
+assert.equal(audit.farm_state,"active");
+assert.deepEqual(audit.controls.surrender,{selector:"#eco-desistir",present:true,enabled:true,policy:"permanently_blocked"});
+assert.deepEqual(audit.controls.hunt_map,{selector:null,present:false,enabled:false,policy:"not_audited"});
+console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");

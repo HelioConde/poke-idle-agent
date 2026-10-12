@@ -4,7 +4,7 @@ const {performScan,testConnection,TELEMETRY_PROTOCOL_VERSION}=require("../chrome
 function fakeApi(initial={},tabs=[]){
   const state={...initial},alarms=[];
   return {state,scheduled:alarms,storage:{local:{async get(keys){const out={};for(const key of keys)if(key in state)out[key]=state[key];return out;},async set(values){Object.assign(state,values);}}},
-    tabs:{async query(){return tabs;},async sendMessage(){return {source:"dom",reader_version:"trainer-xp-scoped-v1",available:true,stats:{level:10,xp_current:100,xp_max:200},diagnostic:{canvas:0,iframes:0,candidates:4,xp_candidates:1,xp_ambiguous:false,xp_trainer_scoped:true,xp_reason:"trainer_xp_scoped"}};}},
+    tabs:{async query(){return tabs;},async sendMessage(_id,message){if(message.type==="IGA_READ_IO_AUTOMATION_AUDIT")return {route:"app",farm_state:"unknown",controls:{surrender:{selector:"#eco-desistir",present:true,enabled:true,policy:"permanently_blocked"}}};return {source:"dom",reader_version:"trainer-xp-scoped-v1",available:true,stats:{level:10,xp_current:100,xp_max:200},diagnostic:{canvas:0,iframes:0,candidates:4,xp_candidates:1,xp_ambiguous:false,xp_trainer_scoped:true,xp_reason:"trainer_xp_scoped"}};}},
     alarms:{create(name,detail){alarms.push({name,detail});}}};
 }
 const ioTab={id:7,windowId:3,url:"https://pokeidle.io/app",title:"Pokeidle",active:false};
@@ -20,6 +20,7 @@ const worldTab={id:8,windowId:3,url:"https://poke.idleworld.online/play",title:"
   let sent;
   result=await performScan({api,fetchFn:async(_url,options)=>{sent=JSON.parse(options.body);return{ok:true,status:200,json:async()=>({ok:true,tab_count:2})};},now:()=>2000});
   assert.equal(result.code,"sync_confirmed");assert.equal(api.state.connection_code,"sync_confirmed");assert.equal(sent.tabs.length,2);assert.equal(sent.tabs[0].observation.telemetry_protocol,TELEMETRY_PROTOCOL_VERSION);assert.equal(sent.tabs[0].observation.xp_trainer_scoped,true);
+  assert.equal(sent.tabs[0].io_audit.controls.surrender.policy,"permanently_blocked");
 
   api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
   result=await performScan({api,fetchFn:async()=>({ok:false,status:401,json:async()=>null}),now:()=>3000});

@@ -207,6 +207,34 @@
         xp_reason:xpReason}};
   }
 
+  function controlSummary(root, selector, policy) {
+    let node = null;
+    try { node = root.querySelector(selector); } catch (_err) {}
+    return {selector, present:Boolean(node), enabled:Boolean(node && !node.disabled), policy};
+  }
+
+  function readAutomationAudit(root, path) {
+    // Inventário e Desistir têm IDs estáveis observados na interface real.
+    // "Mapa" não possuía ID/selector estável na inspeção; portanto é apenas
+    // reportado como não auditado e nunca pode virar alvo de ação por texto.
+    const onApp = path === "/app" || path.startsWith("/app/");
+    if (!onApp) return {route:"not_app", farm_state:"unknown", controls:{}};
+    let panel = null;
+    try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
+    const panelText = typeof panel?.textContent === "string" ? panel.textContent : "";
+    const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
+    return {
+      route:"app", farm_state:farming,
+      controls:{
+        trainer_panel:controlSummary(root,".tr-dados","read_only"),
+        active_pokemon_panel:controlSummary(root,".ativo-info","read_only"),
+        inventory:controlSummary(root,"#btn-bolsa","read_only"),
+        surrender:controlSummary(root,"#eco-desistir","permanently_blocked"),
+        hunt_map:{selector:null,present:false,enabled:false,policy:"not_audited"}
+      }
+    };
+  }
+
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage && typeof document !== "undefined") {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (!message || message.type !== "IGA_READ_IO_DOM") return false;
@@ -215,6 +243,12 @@
       respond(diagnose(document, path));
       return false;
     });
+    chrome.runtime.onMessage.addListener((message, sender, respond) => {
+      if (!message || message.type !== "IGA_READ_IO_AUTOMATION_AUDIT") return false;
+      const path = typeof location === "undefined" ? "/" : location.pathname;
+      respond(readAutomationAudit(document, path));
+      return false;
+    });
   }
-  if (typeof module !== "undefined") module.exports = {DOM_READER_VERSION, toNumber, extractFromLines, scanDocument, diagnose};
+  if (typeof module !== "undefined") module.exports = {DOM_READER_VERSION, toNumber, extractFromLines, scanDocument, diagnose, readAutomationAudit};
 })();
