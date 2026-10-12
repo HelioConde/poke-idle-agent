@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 import json
+import math
 import os
 import secrets
 import time
@@ -122,6 +123,7 @@ class ObservedIO:
     team_defeated: bool | None = None
     session_farming: bool | None = None  # painel de sessão; pode estar defasado
     trainer_xp: int | None = None
+    observed_at: float | None = None  # relógio UTC, coletado no momento da leitura
 
     @property
     def account_key(self):
@@ -155,8 +157,14 @@ def reconcile_farm_state(readings: list[ObservedIO]) -> dict:
             return {"status": "unknown", "reason": "HUD/scene/hunt/XP não suficientemente observados"}
     if first.hunt_id != latest.hunt_id or first.farming != latest.farming:
         return {"status": "transition", "reason": "Estado mudou durante observação"}
+    stamps = (first.observed_at, latest.observed_at)
+    if (any(type(t) not in (float, int) or not math.isfinite(t) for t in stamps) or
+            not 2 <= latest.observed_at - first.observed_at <= 60 or
+            abs(time.time() - latest.observed_at) > 30):
+        return {"status": "unknown",
+                "reason": "Exigir duas leituras reais recentes, separadas por 2–60 segundos"}
     return {"status": "active_stable" if latest.farming else "stopped_stable",
-            "reason": "Duas observações concordantes, sem perda de XP ou derrota"}
+            "reason": "Duas observações recentes e independentes, sem perda de XP ou derrota"}
 
 
 class IOAdapter(Protocol):
