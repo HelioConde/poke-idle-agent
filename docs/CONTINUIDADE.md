@@ -33,3 +33,11 @@
 3. Se os indicadores forem DOM, adicionar somente seletores comprovados e testes de parser.
    Se forem Canvas, registrar a limitação e validar captura permitida antes de OCR.
 4. Reexecutar a suíte completa e documentar o resultado real como real, não simulado.
+
+## Informação pública conferida em 2026-10-11
+
+- A rota `/app` expõe tela de login e, sem autenticação, um HUD público de nível no
+  formato `— Nv 1`; o adaptador reconhece esse formato e continua ignorando `input`.
+- A própria interface lista automações nativas para captura, revive, poções e retorno
+  à hunt. O projeto não envia comandos externos para esses controles; o usuário pode
+  usar as automações oficiais manualmente enquanto a extensão permanece somente leitura.

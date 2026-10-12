@@ -15,6 +15,11 @@ const fakeDoc = {querySelectorAll(){return [
  {tagName:"DIV",childElementCount:0,textContent:"Password: abc",closest(){return null;}}
 ];}};
 assert.deepEqual(scanDocument(fakeDoc), {xp_current:20,xp_max:100});
+const publicHud = {querySelectorAll(){return [
+  {tagName:"DIV",childElementCount:0,textContent:"— Nv 1",closest(){return null;}},
+  {tagName:"INPUT",childElementCount:0,textContent:"senha secret",closest(){return null;}}
+];}};
+assert.deepEqual(scanDocument(publicHud), {level:1});
 assert.deepEqual(extractFromLines(["Nv 44", "Coins1000", "Gems 10"]), {
   level:44, coins:1000, gems:10
 });
