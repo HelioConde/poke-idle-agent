@@ -59,6 +59,29 @@ class PokeGridManualAnalyticsTests(unittest.TestCase):
         result=analyze(payload(self.a,b))
         self.assertEqual(len(result["groups"]),2)
 
+    def test_rank_two_hunts_only_with_same_account_and_pokemon(self):
+        a=sample(hunt="forest")
+        b=sample(hunt="forest",ts="2026-10-12T11:00:00-03:00",
+                 xp=12000,gold=5500,kills=20)
+        c=sample(hunt="lake")
+        d=sample(hunt="lake",ts="2026-10-12T11:00:00-03:00",
+                 xp=11000,gold=8000,kills=15)
+        r_xp=analyze(payload(a,b,c,d),priority="xp")
+        r_gold=analyze(payload(a,b,c,d),priority="gold")
+        self.assertEqual(r_xp["rankings"][0]["hunts"][0]["hunt_id"],"forest")
+        self.assertEqual(r_gold["rankings"][0]["hunts"][0]["hunt_id"],"lake")
+        self.assertEqual(r_xp["rankings"][0]["account_id"],"account-A")
+
+    def test_no_rank_between_different_accounts(self):
+        c=sample(account="account-B")
+        d=sample(account="account-B",ts="2026-10-12T11:00:00-03:00",xp=18000)
+        r=analyze(payload(self.a,self.b,c,d))
+        self.assertEqual(r["rankings"],[])
+
+    def test_invalid_priority_rejected(self):
+        with self.assertRaises(ValueError):
+            analyze(payload(self.a,self.b),priority="money")
+
     def test_level_down_or_counter_reset_no_positive_rate(self):
         b=copy.deepcopy(self.b)
         b["xp_total"]=9000
