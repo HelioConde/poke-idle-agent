@@ -1,0 +1,92 @@
+{
+  "game": "world",
+  "source": "demo",
+  "accounts": [
+    {
+      "profile_id": "exemplo-gratuito",
+      "account_id": "conta-iniciante",
+      "vip": false,
+      "inventory": {
+        "Poke Ball": 25,
+        "Great Ball": 4,
+        "Super Ball": 0,
+        "Ultra Ball": 3,
+        "Idle Ball": 1
+      },
+      "shiny_reserves": {
+        "Great Ball": 1,
+        "Ultra Ball": 2,
+        "Idle Ball": 1
+      },
+      "normal_priority": [
+        "Poke Ball",
+        "Great Ball",
+        "Super Ball",
+        "Ultra Ball"
+      ],
+      "shiny_priority": [
+        "Idle Ball",
+        "Ultra Ball",
+        "Great Ball",
+        "Poke Ball"
+      ],
+      "encounter": {
+        "species": "Pokémon genérico de demonstração",
+        "shiny": false,
+        "confirmed": true
+      },
+      "attempts": [
+        {
+          "species": "Pokémon fictício",
+          "shiny": false,
+          "ball": "Poke Ball",
+          "captured": true,
+          "source": "demo"
+        },
+        {
+          "species": "Pokémon fictício",
+          "shiny": false,
+          "ball": "Poke Ball",
+          "captured": false,
+          "source": "demo"
+        }
+      ]
+    },
+    {
+      "profile_id": "exemplo-gratuito",
+      "account_id": "conta-segunda",
+      "vip": false,
+      "inventory": {
+        "Poke Ball": 0,
+        "Great Ball": 3,
+        "Ultra Ball": 1,
+        "Idle Ball": 1
+      },
+      "shiny_reserves": {
+        "Great Ball": 2,
+        "Ultra Ball": 1,
+        "Idle Ball": 1
+      },
+      "encounter": {
+        "species": "Shiny fictício",
+        "shiny": true,
+        "confirmed": true
+      },
+      "attempts": []
+    },
+    {
+      "profile_id": "exemplo-vip",
+      "account_id": "conta-vip",
+      "vip": true,
+      "inventory": {
+        "Poke Ball": 50
+      },
+      "encounter": {
+        "species": "Pokémon demonstrativo",
+        "shiny": false,
+        "confirmed": true
+      },
+      "attempts": []
+    }
+  ]
+}
