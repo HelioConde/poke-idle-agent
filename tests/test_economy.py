@@ -1,6 +1,7 @@
 import unittest
 
-from app.economy import Opportunity, confirmed_withdrawal_usd, net_gems, pokemon_fee, recommend
+from app.economy import (Opportunity, confirmed_withdrawal_usd, first_withdrawal_goal,
+                         net_gems, pokemon_fee, recommend)
 
 
 class EconomyTests(unittest.TestCase):
@@ -23,6 +24,15 @@ class EconomyTests(unittest.TestCase):
     def test_missing_sales_requires_measurement(self):
         item = Opportunity("Raro", 1, 100, 1, 1, 0)
         self.assertEqual(recommend([item])["action"], "measure_more")
+
+    def test_first_withdrawal_goal_never_confirms_without_manual_proof(self):
+        in_progress = first_withdrawal_goal([100, 899])
+        self.assertEqual(in_progress["remaining_net_gems"], 1)
+        self.assertIsNone(in_progress["confirmed_usdt"])
+        eligible = first_withdrawal_goal([1_000])
+        self.assertEqual(eligible["status"], "eligible_for_manual_withdrawal")
+        confirmed = first_withdrawal_goal([1_000], withdrawal_confirmed=True)
+        self.assertEqual(confirmed["confirmed_usdt"], 7)
 
 
 if __name__ == "__main__":

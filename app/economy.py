@@ -47,6 +47,28 @@ def confirmed_withdrawal_usd(net_balance_gems: float, confirmed: bool) -> float 
     return round(net_balance_gems * WITHDRAWAL_RATE_USD, 2)
 
 
+def first_withdrawal_goal(completed_sale_net_gems: list[float],
+                          withdrawal_confirmed: bool = False) -> dict:
+    """Progresso da meta experimental sem converter saldo em receita fictícia."""
+    if any(not isinstance(value, (int, float)) or value < 0
+           for value in completed_sale_net_gems):
+        raise ValueError("Vendas concluídas inválidas")
+    net_gems = round(sum(completed_sale_net_gems), 4)
+    eligible = net_gems >= MIN_WITHDRAWAL_GEMS
+    if withdrawal_confirmed and not eligible:
+        raise ValueError("Não há Gems líquidas suficientes para o saque mínimo")
+    return {
+        "goal_net_gems": MIN_WITHDRAWAL_GEMS,
+        "completed_sale_net_gems": net_gems,
+        "remaining_net_gems": round(max(0.0, MIN_WITHDRAWAL_GEMS - net_gems), 4),
+        "withdrawal_eligible": eligible,
+        "confirmed_usdt": (confirmed_withdrawal_usd(MIN_WITHDRAWAL_GEMS, True)
+                           if withdrawal_confirmed else None),
+        "status": ("confirmed" if withdrawal_confirmed else
+                   "eligible_for_manual_withdrawal" if eligible else "in_progress"),
+    }
+
+
 @dataclass(frozen=True)
 class Opportunity:
     name: str
