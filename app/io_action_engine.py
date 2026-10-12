@@ -208,6 +208,9 @@ class Engine:
             before = adapter.observe()
             if before.account_key != req.account_key:
                 return self._log(req, "blocked", "Conta/perfil observados não correspondem")
+            precondition = check_precondition(req, before)
+            if precondition:
+                return self._log(req, "blocked", precondition)
             if mode == "live" and not self.approvals.consume(approval_token, req):
                 return self._log(req, "blocked", "Confirmação humana única necessária")
             adapter.perform(req)
@@ -226,6 +229,34 @@ class Engine:
             return self._log(req, "uncertain", f"Falha de adaptação ({type(exc).__name__}); parada de emergência")
 
 
+
+def check_precondition(req: ActionRequest, state: ObservedIO) -> str | None:
+    """Nunca realizar ações em estado desconhecido ou incompatível."""
+    if state.game != "io" or state.account_key != req.account_key:
+        return "Conta incompatível"
+    if req.kind == "select_hunt":
+        if state.farming is not False:
+            return "Pare o farm e confirme o estado antes de trocar a hunt"
+        if state.hunt_id == req.target_id:
+            return "Hunt já selecionada"
+    if req.kind == "start_farm" and (state.farming is not False or not state.hunt_id):
+        return "Hunt ou status de farm desconhecidos; não é seguro iniciar"
+    if req.kind == "stop_farm" and state.farming is not True:
+        return "Farm não está comprovadamente ativo"
+    if req.kind == "evolve_pokemon" and req.target_id not in state.pokemon_species:
+        return "Pokémon não encontrado no estado observado"
+    if req.kind in {"publish_listing","sell_npc"}:
+        if state.inventory.get(req.target_id,0) < req.quantity:
+            return "Estoque insuficiente ou desconhecido"
+    if req.kind == "cancel_listing" and state.listings.get(req.target_id,0) < req.quantity:
+        return "Anúncio não encontrado"
+    if req.kind in {"buy_item","buy_pokemon"}:
+        total = req.price_gems * req.quantity
+        if state.gems_balance is None or state.gems_balance < total:
+            return "Gems insuficientes ou saldo desconhecido"
+    return None
+
+
 def verify_transition(req: ActionRequest, before: ObservedIO, after: ObservedIO) -> bool:
     """Verificação pós-condição, nunca supõe sucesso por ausência de erro."""
     if before.account_key != req.account_key or after.account_key != req.account_key:
@@ -233,25 +264,25 @@ def verify_transition(req: ActionRequest, before: ObservedIO, after: ObservedIO)
     if req.kind == "select_hunt":
         return after.hunt_id == req.target_id
     if req.kind == "start_farm":
-        return after.farming is True
+        return before.farming is False and after.farming is True
     if req.kind == "stop_farm":
-        return after.farming is False
+        return before.farming is True and after.farming is False
     if req.kind == "evolve_pokemon":
         return (req.target_id in before.pokemon_species and
                 req.target_id in after.pokemon_species and
                 before.pokemon_species[req.target_id] != after.pokemon_species[req.target_id])
     if req.kind == "publish_listing":
-        return (after.listings.get(req.target_id, 0) > before.listings.get(req.target_id, 0) and
-                after.inventory.get(req.target_id, 0) < before.inventory.get(req.target_id, 0))
+        return (after.listings.get(req.target_id, 0) - before.listings.get(req.target_id, 0) == req.quantity and
+                before.inventory.get(req.target_id, 0) - after.inventory.get(req.target_id, 0) == req.quantity)
     if req.kind in {"buy_item", "buy_pokemon"}:
         return (before.gems_balance is not None and after.gems_balance is not None and
-                after.gems_balance < before.gems_balance and
-                after.inventory.get(req.target_id, 0) > before.inventory.get(req.target_id, 0))
+                before.gems_balance - after.gems_balance == req.price_gems * req.quantity and
+                after.inventory.get(req.target_id, 0) - before.inventory.get(req.target_id, 0) == req.quantity)
     if req.kind == "sell_npc":
-        return after.inventory.get(req.target_id, 0) < before.inventory.get(req.target_id, 0)
+        return before.inventory.get(req.target_id, 0) - after.inventory.get(req.target_id, 0) == req.quantity
     if req.kind == "cancel_listing":
-        return (after.listings.get(req.target_id, 0) < before.listings.get(req.target_id, 0) and
-                after.inventory.get(req.target_id, 0) > before.inventory.get(req.target_id, 0))
+        return (before.listings.get(req.target_id, 0) - after.listings.get(req.target_id, 0) == req.quantity and
+                after.inventory.get(req.target_id, 0) - before.inventory.get(req.target_id, 0) == req.quantity)
     if req.kind in {"inspect_inventory", "inspect_pokemon", "evaluate_evolution",
                     "prepare_listing"}:
         return True  # Apenas avaliação: nenhuma transação.
