@@ -118,15 +118,52 @@
     return lines;
   }
 
+  function readScopedTrainer(root, globalLevel) {
+    // Observado no IO: barra do TREINADOR em .tr-dados; XP do Pokemon
+    // ativo em .ativo-info. Nunca escolher por valor maior ou posicao DOM.
+    if (!root || typeof root.querySelectorAll !== "function") return null;
+    const results = new Map();
+    for (const panel of root.querySelectorAll(".tr-dados")) {
+      const lines = collectLines(panel);
+      const stats = extractFromLines(lines);
+      // Exigir nivel e barra completos dentro do mesmo quadro do treinador.
+      if (stats.level == null || stats.xp_current == null ||
+          stats.xp_max == null) continue;
+      // Nivel global pode estar vindo do Pokemon; o painel do treinador
+      // tem prioridade, mas duas barras no mesmo painel permanecem invalidas.
+      const id = [stats.level, stats.xp_current, stats.xp_max].join("/");
+      results.set(id, {level:stats.level, current:stats.xp_current,
+                       maximum:stats.xp_max});
+    }
+    return results.size === 1 ? [...results.values()][0] : null;
+  }
+
+  function inspectDocument(root) {
+    const lines = collectLines(root);
+    const stats = extractFromLines(lines);
+    const xpCandidates = xpPairs(lines).length;
+    const trainer = readScopedTrainer(root, stats.level);
+    // Uma barra unica fora de .tr-dados pode pertencer ao Pokemon.
+    // XP/h depende da experiencia do treinador, nunca de XP global solto.
+    delete stats.xp_current;
+    delete stats.xp_max;
+    if (trainer) {
+      stats.level = trainer.level;
+      stats.xp_current = trainer.current;
+      stats.xp_max = trainer.maximum;
+    }
+    return {stats, xpCandidates, trainerScoped: Boolean(trainer)};
+  }
+
   function scanDocument(root) {
-    return extractFromLines(collectLines(root));
+    return inspectDocument(root).stats;
   }
 
   function diagnose(root, path) {
     const onApp = path === "/app" || path.startsWith("/app/");
-    const lines = onApp ? collectLines(root) : [];
-    const stats = onApp ? extractFromLines(lines) : {};
-    const xpCandidates = xpPairs(lines).length;
+    const report = onApp ? inspectDocument(root)
+      : {stats:{},xpCandidates:0,trainerScoped:false};
+    const {stats,xpCandidates,trainerScoped} = report;
     const count = selector => {
       try { return Math.min(99, root.querySelectorAll(selector).length); }
       catch (_err) { return 0; }
@@ -137,7 +174,8 @@
       diagnostic:{status,canvas:count("canvas"),iframes:count("iframe"),
         candidates:Math.min(3500,count("span,div,p,b,strong,small,label,li")),
         xp_candidates:Math.min(20,xpCandidates),
-        xp_ambiguous:xpCandidates>1}};
+        xp_ambiguous:xpCandidates>1 && !trainerScoped,
+        xp_trainer_scoped:trainerScoped}};
   }
 
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage && typeof document !== "undefined") {
