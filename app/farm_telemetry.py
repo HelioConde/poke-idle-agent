@@ -77,3 +77,26 @@ def overkill_evidence(kill_times: list[float], respawn_seconds: float,
     interval = round(mean(intervals), 2)
     return {"status": "measured", "overkill": interval <= respawn_seconds,
             "mean_kill_interval": interval}
+
+
+def respawn_bottleneck(kill_intervals: list[float], combat_seconds: list[float],
+                       min_samples: int = 3) -> dict:
+    """Separa combate e espera usando medições locais compatíveis em pares.
+
+    A conclusão é limitada ao período observado. Não estima a vida do alvo, o
+    dano ou um valor de respawn que a fonte não tenha fornecido.
+    """
+    if min_samples < 1 or len(kill_intervals) != len(combat_seconds):
+        raise ValueError("Amostras de combate incompatíveis")
+    if len(kill_intervals) < min_samples:
+        return {"status": "insufficient", "overkill": None,
+                "mean_combat_seconds": None, "mean_wait_seconds": None}
+    if any(value <= 0 for value in kill_intervals + combat_seconds):
+        raise ValueError("Durações de combate inválidas")
+    waits = [max(0.0, interval - combat)
+             for interval, combat in zip(kill_intervals, combat_seconds)]
+    average_combat = round(mean(combat_seconds), 2)
+    average_wait = round(mean(waits), 2)
+    return {"status": "measured", "overkill": average_wait > average_combat,
+            "mean_combat_seconds": average_combat,
+            "mean_wait_seconds": average_wait}

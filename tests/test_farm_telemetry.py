@@ -1,6 +1,6 @@
 import unittest
 
-from app.farm_telemetry import FarmSample, overkill_evidence, summarize
+from app.farm_telemetry import FarmSample, overkill_evidence, respawn_bottleneck, summarize
 
 
 class FarmTelemetryTests(unittest.TestCase):
@@ -33,6 +33,13 @@ class FarmTelemetryTests(unittest.TestCase):
         evidence = overkill_evidence([1, 3, 5, 7], 2)
         self.assertEqual(evidence["status"], "measured")
         self.assertTrue(evidence["overkill"])
+
+    def test_respawn_bottleneck_uses_measured_combat_and_wait(self):
+        result = respawn_bottleneck([9, 10, 8], [2, 2, 2])
+        self.assertEqual(result["mean_combat_seconds"], 2)
+        self.assertEqual(result["mean_wait_seconds"], 7)
+        self.assertTrue(result["overkill"])
+        self.assertIsNone(respawn_bottleneck([5], [2])["overkill"])
 
 
 if __name__ == "__main__":
