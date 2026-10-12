@@ -1,0 +1,93 @@
+[
+  {
+    "game": "world",
+    "profile_id": "demo-world-new",
+    "account_id": "conta-iniciante",
+    "trainer_level": 1,
+    "roster": [
+      {
+        "id": "starter",
+        "species": "Bulbasaur",
+        "level": 1,
+        "hp": 40,
+        "max_hp": 40
+      }
+    ],
+    "active_pokemon_id": "starter",
+    "hunts": [
+      {
+        "id": "rota-inicial",
+        "label": "Rota inicial (exemplo)",
+        "unlocked": true,
+        "required_trainer_level": 1
+      },
+      {
+        "id": "rota-seguinte",
+        "label": "Outra rota (exemplo)",
+        "unlocked": false,
+        "required_trainer_level": 12
+      }
+    ]
+  },
+  {
+    "game": "world",
+    "profile_id": "demo-world-veteran",
+    "account_id": "conta-experiente",
+    "trainer_level": 105,
+    "roster": [
+      {
+        "id": "principal",
+        "species": "Charizard",
+        "level": 110,
+        "hp": 300,
+        "max_hp": 300
+      },
+      {
+        "id": "reserva",
+        "species": "Squirtle",
+        "level": 16,
+        "hp": 50,
+        "max_hp": 50
+      }
+    ],
+    "active_pokemon_id": "principal",
+    "hunts": [
+      {
+        "id": "hunt-a",
+        "label": "Hunt A fictícia",
+        "unlocked": true,
+        "required_trainer_level": null
+      },
+      {
+        "id": "hunt-b",
+        "label": "Hunt B fictícia",
+        "unlocked": true,
+        "required_trainer_level": null
+      }
+    ]
+  },
+  {
+    "game": "io",
+    "profile_id": "demo-io",
+    "account_id": "conta-io",
+    "trainer_level": 2,
+    "roster": [
+      {
+        "id": "primeiro",
+        "species": "Pikachu",
+        "level": 3,
+        "hp": 30,
+        "max_hp": 30
+      }
+    ],
+    "active_pokemon_id": "primeiro",
+    "hunts": [
+      {
+        "id": "area-1",
+        "label": "Área demonstrativa",
+        "unlocked": true,
+        "required_trainer_level": null
+      }
+    ]
+  }
+]
