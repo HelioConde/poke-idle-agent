@@ -133,7 +133,7 @@ class Registry:
         self.token = token
         self.memory = memory
         self.records: dict[str, dict] = {}
-        self.samples: dict[tuple[str, int], dict] = {}
+        self.samples: dict[tuple[str, int, int], dict] = {}
         self.lock = threading.RLock()
 
     def ingest(self, data: object) -> int:
@@ -230,7 +230,8 @@ class Registry:
                                   observation.get("content_state") == "responded")
                 valid_xp = (scope_verified and type(stats.get("level")) is int and
                             type(stats.get("xp_current")) in (int, float) and
-                            type(stats.get("xp_max")) in (int, float))
+                            (stats.get("xp_max") is None or
+                             type(stats["xp_max"]) in (int, float)))
                 rate = None
                 windows = {}
                 if not valid_xp:
@@ -242,7 +243,7 @@ class Registry:
                     invalid_transition = (last is not None and (
                         now - last["seen"] > EXPIRY_SECONDS or
                         previous.get("level") != stats["level"] or
-                        previous.get("xp_max") != stats["xp_max"] or
+                        previous.get("xp_max") != stats.get("xp_max") or
                         stats["xp_current"] < previous["xp_current"]))
                     if invalid_transition:
                         self.samples.pop(key, None)
