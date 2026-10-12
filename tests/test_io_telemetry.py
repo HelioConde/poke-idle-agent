@@ -38,12 +38,17 @@ class IoTelemetryTests(unittest.TestCase):
         self.assertEqual(sanitize_observation(payload), payload)
         old = {k: payload[k] for k in ("status", "canvas", "iframes", "candidates")}
         self.assertEqual(sanitize_observation(old), old)
+        resolved = dict(payload, xp_ambiguous=False, xp_trainer_scoped=True)
+        self.assertEqual(sanitize_observation(resolved), resolved)
         for corrupted in (
             dict(payload, xp_ambiguous=False),
             dict(payload, xp_candidates="2"),
             dict(payload, xp_candidates=21),
             dict(payload, raw_xp="7.346 / 15.400 xp"),
             dict(payload, xp_ambiguous="true"),
+            dict(resolved, xp_trainer_scoped="true"),
+            dict(resolved, xp_trainer_scoped=False),
+            dict(resolved, xp_candidates=0),
         ):
             with self.subTest(corrupted=corrupted), self.assertRaises(ValueError):
                 sanitize_observation(corrupted)
