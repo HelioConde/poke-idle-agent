@@ -161,6 +161,14 @@ class Registry:
                         "landing", "other_route"):
                     raise ValueError("Diagnóstico não corresponde à rota IO")
                 entry["observation"] = sanitize_observation(tab["observation"])
+            if tab["game"] == "io" and "telemetry" in entry:
+                # Nao confiar em XP de extensoes antigas (ou barras do Pokemon).
+                # Somente a leitura comprovada em .tr-dados vale como XP do treinador.
+                scope_verified = entry.get("observation", {}).get("xp_trainer_scoped") is True
+                if not scope_verified:
+                    entry["telemetry"]["stats"].pop("xp_current", None)
+                    entry["telemetry"]["stats"].pop("xp_max", None)
+                    entry["telemetry"]["available"] = bool(entry["telemetry"]["stats"])
             if tab["game"] != "io" and (
                     "telemetry" in tab or "observation" in tab):
                 raise ValueError("World não aceita telemetria de conta")
@@ -174,10 +182,12 @@ class Registry:
                 stats = (reading or {}).get("stats") or {}
                 key = (profile_id, tab["tab_id"])
                 last = self.samples.get(key)
+                scope_verified = tab.get("observation", {}).get("xp_trainer_scoped") is True
                 rate = last.get("rate") if last else None
-                if not stats:
+                if not scope_verified or "xp_current" not in stats:
                     rate = None
                     self.samples.pop(key, None)
+                    last = None
                 if stats:
                     if last and now - last["seen"] >= 5:
                         rate = measured_xp_per_hour(
