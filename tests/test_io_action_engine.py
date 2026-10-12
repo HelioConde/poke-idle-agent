@@ -198,7 +198,12 @@ class LiveGateTests(unittest.TestCase):
             self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=False,
                                   scene="hunt",team_defeated=False,
                                   session_farming=False,trainer_xp=5490)
-        def observe(self): return self.state
+        def observe(self):
+            from dataclasses import replace
+            from time import time
+            self._observations = getattr(self, "_observations", 0) + 1
+            stamp = time() - 3 if self._observations == 1 else time()
+            return replace(self.state, observed_at=stamp)
         def perform(self,request):
             self.state=ObservedIO("io","demo","demo",hunt_id="forest",farming=True,
                                   scene="hunt",team_defeated=False,
