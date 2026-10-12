@@ -62,6 +62,29 @@ anuncia nem vende nada):
 Consulte a conta com `py -3 -m app.financial_ledger --ledger data/financial.sqlite3 summary --game io --profile meu-perfil --account minha-conta`.
 O estágio `received` exige `--confirm-received` e só deve ser usado depois de
 confirmar manualmente o crédito; nunca informe chave privada ou seed phrase.
+## Integração PokeGrid (MIT) — análise offline do World
+
+Incorporamos o cálculo puro de **IVs e projeções de atributos** do
+[PokeGrid-source](https://github.com/soufoka/PokeGrid-source), sob MIT,
+com os direitos autorais originais preservados em `vendor/pokegrid/LICENSE`.
+
+Também adicionamos relatórios de XP/h, gold líquido/h, kills/h, capturas/h,
+suprimentos e shinies, com amostras **manuais** e isolamento por conta,
+Pokémon e hunt. O painel recebe um JSON local opcional.
+
+    node tools/pokegrid_iv_cli.js examples/pokegrid_iv_demo.json
+    py -3 -m app.world_pokegrid_report --file examples/pokegrid_snapshots_demo.json
+    py -3 dashboard.py --world-report examples/pokegrid_snapshots_demo.json
+
+Os exemplos são fictícios e identificados como demo. Para sua análise,
+copie-os para `data/` e substitua por dados medidos manualmente.
+
+**Não incluímos o cliente Electron PokeGrid, login automático, 4 contas
+conectadas, userscripts nem macros.** As regras do World exigem autorização
+prévia da administração para terceiros. Este módulo não se conecta ao jogo.
+Não misturamos gold/diamantes World com Gems/USDT do IO.
+
+Guia: [Integração PokeGrid offline](docs/POKEGRID_OFFLINE_INTEGRATION.md).
 ## Objetivo principal: transformar farm em USDT comprovado
 
 A missão do agente é **maximizar o valor líquido realizável em USDT por hora**,
