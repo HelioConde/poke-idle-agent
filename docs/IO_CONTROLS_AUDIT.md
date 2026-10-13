@@ -167,3 +167,28 @@ permanecem zeradas, mesmo que o jogo tenha montado os nós ocultos.
 
 A próxima validação é **no Chrome, com extensão recarregada e Mapa aberto
 manualmente**. Nenhum clique de navegação ou gameplay foi habilitado.
+
+### Evidência visual da cena — versão 0.2.7
+
+A captura HTML enviada da interface IO mostra a classe `hunt-ativa` no
+elemento `#palco`, enquanto `#centro-curar` está oculto. Isso permite
+registrar que o **palco exibido** parece ser o de uma hunt, mas **não comprova
+que o servidor do jogo está farmando ou batalhando**. O leitor original
+passa a produzir uma enumeração estritamente fechada:
+
+- `hunt_scene`: `#palco.hunt-ativa` e nenhuma indicação visual de Centro
+- `center_scene`: `#palco.centro-ativo` e `#centro-curar` exibido
+- `conflict`: sinais de cena de hunt e Centro simultâneos
+- `unknown`: ausência ou inconsistência das evidências visuais
+
+O novo campo `scene_indicator` só é aceito pelo validador na rota `/app`;
+para outras rotas, somente `unknown`. A estrutura anterior da extensão
+continua suportada. O monitor deixa claro quando o texto de `#eco-painel`
+apenas **sugere atividade**.
+
+Esta medição não muda `farm_state`, `advice`, permissões, execução do
+adaptador ou ranking de hunts. Não transmite texto do palco, botões, nome,
+conta, equipe, HTML nem dados do combate. `Desistir` continua proibido.
+Os cenários de hunt, Centro, conflito e rota diferente estão cobertos por
+testes offline. A confirmação da cena no **Chrome real**, após recarregar a
+extensão e a página, ainda é necessária.
