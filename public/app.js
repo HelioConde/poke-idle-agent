@@ -223,6 +223,57 @@ async function loadRegisteredAccounts() {
   }
 }
 
+// Este painel não usa números de demonstração como telemetria nem agrega
+// XP/h de abas diferentes ou mistura World com IO.
+function updateLiveIoSummary(payload){
+  const set=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=value;};
+  const all=(payload?.tabs||[]).filter(item=>item.game==='io');
+  const current=all.filter(item=>{
+    const observation=item.observation||{},stats=item.telemetry?.stats||{};
+    return item.route==='app' && observation.xp_trainer_scoped===true &&
+      observation.telemetry_protocol===2 &&
+      observation.reader_version==='trainer-xp-scoped-v1' &&
+      observation.content_state==='responded' &&
+      Number.isInteger(stats.level) && stats.level>0 &&
+      typeof stats.xp_current==='number' && Number.isFinite(stats.xp_current) &&
+      stats.xp_current>=0;
+  }).sort((a,b)=>(a.age_seconds??1e9)-(b.age_seconds??1e9));
+  const chosen=current[0];
+  if(!chosen || !(chosen.age_seconds<=90)){
+    set('live-state',!all.length
+      ? 'Sem abas IO sincronizadas · conecte a extensão e abra o jogo.'
+      : 'Abas encontradas, mas sem leitura recente e validada do XP do treinador.');
+    set('live-trainer-level','—');
+    set('live-trainer-xp','—');
+    set('live-trainer-rate','—');
+    set('live-trend','Aguardando');
+    set('live-note','Nenhum número de exemplo é usado neste resumo. A telemetria precisa ser recente e confirmada.');
+    return;
+  }
+  const stats=chosen.telemetry.stats;
+  const fmt=value=>value.toLocaleString('pt-BR',{maximumFractionDigits:1});
+  const max=typeof stats.xp_max==='number' && Number.isFinite(stats.xp_max)
+    ? ' / '+stats.xp_max.toLocaleString('pt-BR') : '';
+  set('live-state','Leitura real do treinador confirmada · '+all.length+
+    ' aba(s) IO · perfil Chrome '+(chosen.profile_label||'sem rótulo')+
+    ' · atualização há '+chosen.age_seconds+'s.');
+  set('live-trainer-level',String(stats.level));
+  set('live-trainer-xp',stats.xp_current.toLocaleString('pt-BR')+max);
+  const rate=chosen.xp_per_hour;
+  set('live-trainer-rate',typeof rate==='number' && Number.isFinite(rate)
+    ?fmt(rate)+' XP/h':'Aguardando amostras');
+  const windows=chosen.xp_windows||{};
+  const mature=['5m','15m','60m'].filter(key=>
+    typeof windows[key]==='number' && Number.isFinite(windows[key]) && windows[key]>=0);
+  set('live-trend',mature.length?mature.map(key=>key+': '+fmt(windows[key])).join(' · '):'Aguardando');
+  const warning=all.length>1
+    ?' Há mais de uma aba IO: este resumo exibe só a leitura mais recente, sem somar XP.'
+    :'';
+  set('live-note','XP/h recente é calculado entre leituras e pode variar muito. '+
+    'As médias de 5/15/60 min só aparecem quando a janela estiver madura. '+
+    'Perfil Chrome não comprova identidade de conta ou hunt.'+warning);
+}
+
 async function refreshUnifiedTabs() {
   const status = document.getElementById('unified-status');
   const grid = document.getElementById('tabs-grid');
@@ -231,6 +282,7 @@ async function refreshUnifiedTabs() {
     const res=await fetch('/api/tabs',{cache:'no-store'});
     if(!res.ok) throw Error('HTTP '+res.status);
     const payload=await res.json();
+    updateLiveIoSummary(payload);
     status.textContent='Monitor IO ativo · '+payload.tabs.length+' aba(s) · '+
       payload.profiles+' perfil(is) Chrome';
     grid.replaceChildren();
@@ -409,6 +461,9 @@ async function refreshUnifiedTabs() {
       }
     }
   }catch(error){
+    updateLiveIoSummary({tabs:[]});
+    const live=document.getElementById('live-state');
+    if(live)live.textContent='Não foi possível consultar o monitor local: '+error.message;
     status.textContent='Monitor não iniciado: '+error.message;
     grid.replaceChildren();
   }
