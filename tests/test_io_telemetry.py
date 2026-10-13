@@ -208,6 +208,26 @@ class IoTelemetryTests(unittest.TestCase):
             sanitize_automation_audit(dict(base, route="not_app",
                                            map_structure=observed))
 
+    def test_visual_scene_is_readonly_and_route_scoped(self):
+        base = {"route": "app", "farm_state": "unknown", "map_state": "closed",
+                "controls": {}}
+        for value in ("hunt_scene", "center_scene", "conflict", "unknown"):
+            with self.subTest(value=value):
+                audit = sanitize_automation_audit(dict(base, scene_indicator=value))
+                self.assertEqual(audit["scene_indicator"], value)
+                self.assertNotIn("action", audit)
+        for invalid in ("hunting", "stop_farm", True, 1, [], {"class": "hunt-ativa"}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, scene_indicator=invalid))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app",
+                                           scene_indicator="hunt_scene"))
+        self.assertEqual(sanitize_automation_audit(
+            dict(base, route="not_app", scene_indicator="unknown"))["scene_indicator"],
+            "unknown")
+        # Leitores legados continuam aceitos, mas sem a evidência opcional.
+        self.assertNotIn("scene_indicator", sanitize_automation_audit(base))
+
     def test_automation_audit_is_closed_and_never_approves_control(self):
         audit = {"route": "app", "farm_state": "active", "controls": {
             "surrender": {"selector": "#eco-desistir", "present": True,
