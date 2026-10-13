@@ -257,20 +257,38 @@ const mapTestDoc = {
     if(selector === '#modal .modal-caixa[data-modal="mapa"]')return {disabled:false};
     if(selector === "#modal-corpo")return {querySelectorAll(kind){
       reads++;
-      return Array(kind==="button"?7:kind==="a[href]"?3:2).fill({});
+      // Estrutura reconstruída a partir de um HTML real; nenhum dado da conta
+      // ou HTML bruto é compartilhado com o repositório.
+      const counts={
+        "button":24, "a[href]":0,
+        "[data-hunt], [data-hunt-id], [data-slug]":14,
+        ".mapa-areas button.mapa-area[data-regiao]":8,
+        ".mapa-areas button.mapa-area[data-regiao]:not(.mapa-area-travada)":2,
+        "#mapa-tela button.marcador[data-slug][data-travado]":14,
+        '#mapa-tela button.marcador[data-slug][data-travado="0"]':8,
+        "#mapa-tela button.marcador.on[data-slug]":1
+      };
+      return Array(counts[kind]||0).fill({});
     }};
     return null;
   }
 };
 const mapRead=readAutomationAudit(mapTestDoc,"/app");
 assert.deepEqual(mapRead.map_structure,
-  {status:"observed",buttons:7,links:3,candidate_markers:2});
-assert.equal(reads,3);
+  {status:"observed",buttons:24,links:0,candidate_markers:14,
+   rendered_regions:8,available_regions:2,rendered_markers:14,
+   unlocked_markers:8,highlighted_markers:1});
+assert.equal(reads,8);
 assert.equal(mapRead.controls.surrender.policy,"permanently_blocked");
 const hiddenDoc={...mapTestDoc,querySelector(selector){
   if(selector==="#modal")return {hidden:true,classList:{contains(){return false;}}};
   return mapTestDoc.querySelector(selector);
 }};
 assert.equal(readAutomationAudit(hiddenDoc,"/app").map_structure.status,"not_open");
-assert.equal(reads,3);
-console.log("IO DOM: mapa aberto reporta somente contagens fechadas");
+assert.equal(reads,8);
+assert.deepEqual(readAutomationAudit(hiddenDoc,"/app").map_structure,{
+  status:"not_open",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0
+});
+console.log("IO DOM: contagens de regiões/locais só quando mapa aberto");
