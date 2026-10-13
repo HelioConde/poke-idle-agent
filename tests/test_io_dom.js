@@ -177,6 +177,7 @@ assert.deepEqual(audit.controls.surrender,{selector:"#eco-desistir",present:true
 assert.deepEqual(audit.controls.hunt_map,{selector:'button[data-modal="mapa"]',present:false,enabled:false,policy:"read_only"});
 console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");
 
+assert.deepEqual(audit.hunt_hint,{status:"unavailable",label:null,level:null,source:"none"});
 assert.equal(audit.map_state,"unknown");
 assert.equal(audit.controls.native_revive.toggle_state,"unknown");
 
@@ -211,6 +212,33 @@ assert.equal(closedMap.map_state,"closed");
 assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,"closed");
 assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
 assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
-  route:"not_app",farm_state:"unknown",map_state:"unknown",controls:{}
+  route:"not_app",farm_state:"unknown",map_state:"unknown",
+  hunt_hint:{status:"unavailable",label:null,level:null,source:"none"},controls:{}
 });
 console.log("IO DOM: mapa e automacoes nativas detectados somente em leitura");
+
+
+// O indicador do local é apenas pista, jamais slug ou identidade de conta.
+// As amostras são fixtures locais, não leitura do jogo real.
+function hintDoc(hud,eco){
+  return {querySelector(selector){
+    if(selector==="#hud-hunt")return hud===null?null:{textContent:hud};
+    if(selector==="#eco-onde")return eco===null?null:{textContent:eco};
+    return null;
+  }};
+}
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30","Larvitar · nível 30"),"/app").hunt_hint,
+  {status:"matching_displays",label:"Larvitar",level:30,source:"both"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30",null),"/app").hunt_hint,
+  {status:"single_display",label:"Larvitar",level:30,source:"hud"});
+assert.deepEqual(readAutomationAudit(hintDoc(null,"Oddish · Lv 15"),"/app").hunt_hint,
+  {status:"single_display",label:"Oddish",level:15,source:"eco"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30","Oddish · nível 30"),"/app").hunt_hint,
+  {status:"ambiguous",label:null,level:null,source:"both"});
+assert.deepEqual(readAutomationAudit(hintDoc("<script> · nível 20",null),"/app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(readAutomationAudit(hintDoc("trainer@email.com · nível 20",null),"/app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30",null),"/not-app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+console.log("IO DOM: HUD de hunt observado como pista, sem ID nem autorizacao");
