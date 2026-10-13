@@ -315,9 +315,18 @@ async function refreshUnifiedTabs() {
           heading.textContent=(io.profile_label||'Perfil Chrome')+
             ' · aba '+String(io.tab_id)+' · '+(mapStatus[audit.map_state]||'Mapa não verificado');
           const summary=document.createElement('p');
-          summary.textContent='Telemetria há '+String(io.age_seconds)+'s · farm: '+
-            (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+
-            ' · nenhuma ação liberada';
+          const sceneLabels={
+            hunt_scene:'cena de hunt exibida',
+            center_scene:'cena de Centro Pokémon exibida',
+            conflict:'sinais de cena conflitantes',
+            unknown:'cena não identificada'
+          };
+          summary.textContent='Telemetria há '+String(io.age_seconds)+'s · '+
+            (audit.farm_state==='active'
+              ? 'texto do painel sugere atividade'
+              : 'estado do farm não confirmado')+
+            ' · '+(sceneLabels[audit.scene_indicator]||'cena ainda não auditada')+
+            ' · nenhuma ação liberada. Cenas visuais não comprovam farm ativo no servidor.';
           const hint=audit.hunt_hint;
           if(hint && ['matching_displays','single_display','ambiguous','unavailable'].includes(hint.status)){
             const encounter=document.createElement('p');
