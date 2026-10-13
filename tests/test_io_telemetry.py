@@ -139,6 +139,35 @@ class IoTelemetryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sanitize_automation_audit(dict(base, route="not_app", hunt_hint=matching))
 
+    def test_real_map_count_shape_accepts_only_bounded_readonly_numbers(self):
+        base = {"route": "app", "farm_state": "active",
+                "map_state": "open", "controls": {}}
+        counts = {"status": "observed", "buttons": 24, "links": 0,
+                  "candidate_markers": 14, "rendered_regions": 8,
+                  "available_regions": 2, "rendered_markers": 14,
+                  "unlocked_markers": 8, "highlighted_markers": 1}
+        self.assertEqual(sanitize_automation_audit({
+            **base, "map_structure": counts})["map_structure"], counts)
+        for key, value in (
+            ("available_regions", 9), ("unlocked_markers", 15),
+            ("highlighted_markers", 15), ("rendered_markers", 15),
+            ("rendered_regions", -1), ("candidate_markers", 201),
+            ("unlocked_markers", True),
+        ):
+            broken = {**counts, key: value}
+            with self.subTest(field=key), self.assertRaises(ValueError):
+                sanitize_automation_audit({**base, "map_structure": broken})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_structure": {**counts, "data_slug": "bulbasaur"}})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_structure": {k: v for k, v in counts.items()
+                                           if k != "available_regions"}})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_state": "closed", "map_structure": counts})
+
     def test_readonly_map_structure_rejects_untrusted_fields_and_inconsistent_state(self):
         base = {"route": "app", "farm_state": "unknown",
                 "map_state": "open", "controls": {}}
