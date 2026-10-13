@@ -221,7 +221,7 @@ assert.equal(closedMap.map_structure.status,"not_open");
 assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,"closed");
 assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
 assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
-  route:"not_app",farm_state:"unknown",map_state:"unknown",
+  route:"not_app",farm_state:"unknown",map_state:"unknown",scene_indicator:"unknown",
   map_structure:{status:"not_open",buttons:0,links:0,candidate_markers:0,
     rendered_regions:0,available_regions:0,rendered_markers:0,
     unlocked_markers:0,highlighted_markers:0},
@@ -300,3 +300,25 @@ assert.deepEqual(readAutomationAudit(hiddenDoc,"/app").map_structure,{
   unlocked_markers:0,highlighted_markers:0
 });
 console.log("IO DOM: contagens de regiões/locais só quando mapa aberto");
+
+// Cena de hunt != farm confirmado: apenas classes estáticas da tela.
+// Este fixture não representa autorização de gameplay.
+function sceneDoc({stageClass="hunt-ativa",cureHidden=true,curePresent=true}={}){
+  return {querySelector(selector){
+    if(selector==="#palco")return {classList:{contains(name){return stageClass.split(" ").includes(name);}}};
+    if(selector==="#centro-curar" && curePresent)return {
+      hidden:false, classList:{contains(name){return name==="hidden" && cureHidden;}}
+    };
+    return null;
+  }};
+}
+assert.equal(readAutomationAudit(sceneDoc(),"/app").scene_indicator,"hunt_scene");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo",cureHidden:false}),"/app").scene_indicator,"center_scene");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo hunt-ativa",cureHidden:false}),"/app").scene_indicator,"conflict");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo",cureHidden:true}),"/app").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"",cureHidden:true}),"/app").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/login").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/app").farm_state,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/app").controls.surrender.policy,"permanently_blocked");
+console.log("IO DOM: cena visual não confirma farm nem habilita execução");
+
