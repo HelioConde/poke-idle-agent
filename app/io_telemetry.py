@@ -126,7 +126,7 @@ MAP_STATES = frozenset({"unknown", "open", "closed"})
 
 
 
-HUNT_HINT_LABEL = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .'-]{0,47}\\Z")
+HUNT_HINT_LABEL = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .'-]{0,47}\Z")
 HUNT_HINT_STATUSES = frozenset({"unavailable", "ambiguous", "matching_displays", "single_display"})
 HUNT_HINT_SOURCES = frozenset({"none", "both", "hud", "eco"})
 
@@ -148,8 +148,7 @@ def sanitize_hunt_hint(value: object) -> dict:
     elif status == "ambiguous":
         valid = source == "both" and label is None and level is None
     else:
-        valid = (source == ("both" if status == "matching_displays" else source) and
-                 (status != "matching_displays" or source == "both") and
+        valid = ((status != "matching_displays" or source == "both") and
                  (status != "single_display" or source in {"hud", "eco"}) and
                  isinstance(label, str) and HUNT_HINT_LABEL.fullmatch(label) is not None and
                  label == label.strip() and
