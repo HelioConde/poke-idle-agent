@@ -21,6 +21,21 @@ const worldTab={id:8,windowId:3,url:"https://poke.idleworld.online/play",title:"
   result=await performScan({api,fetchFn:async(_url,options)=>{sent=JSON.parse(options.body);return{ok:true,status:200,json:async()=>({ok:true,tab_count:2})};},now:()=>2000});
   assert.equal(result.code,"sync_confirmed");assert.equal(api.state.connection_code,"sync_confirmed");assert.equal(sent.tabs.length,2);assert.equal(sent.tabs[0].observation.telemetry_protocol,TELEMETRY_PROTOCOL_VERSION);assert.equal(sent.tabs[0].observation.xp_trainer_scoped,true);
   assert.equal(sent.tabs[0].io_audit.controls.surrender.policy,"permanently_blocked");
+  assert.equal(api.state.last_audit_status,"audit_received");
+  assert.equal(api.state.last_audit_received,1);
+  const normalReader=api.tabs.sendMessage;
+  api.tabs.sendMessage=async (id,message)=>message.type==="IGA_READ_IO_AUTOMATION_AUDIT"
+    ? undefined : normalReader(id,message);
+  result=await performScan({api,fetchFn:async(_url,options)=>{
+    sent=JSON.parse(options.body);
+    return {ok:true,status:200,json:async()=>({ok:true,tab_count:2})};
+  },now:()=>2500});
+  assert.equal(result.code,"sync_confirmed");
+  assert.equal(sent.tabs[0].observation.content_state,"responded");
+  assert.equal(sent.tabs[0].io_audit,undefined);
+  assert.equal(api.state.last_audit_status,"reader_ok_audit_missing");
+  assert.equal(api.state.last_audit_missing,1);
+
 
   api=fakeApi({profile_id:"12345678-1234-1234-1234-123456789012",pairing_token:"x".repeat(32)},[ioTab]);
   result=await performScan({api,fetchFn:async()=>({ok:false,status:401,json:async()=>null}),now:()=>3000});
