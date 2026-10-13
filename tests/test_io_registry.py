@@ -118,6 +118,25 @@ class RegistryTelemetryTests(unittest.TestCase):
         self.assertIsNone(result["xp_per_hour"])
         self.assertEqual(result["xp_windows"], {})
 
+    def test_hunt_hint_reaches_registry_without_creating_action(self):
+        registry = Registry("test-token")
+        item = payload()
+        item["tabs"][0]["io_audit"] = {
+            "route": "app", "farm_state": "active", "map_state": "closed",
+            "hunt_hint": {"status": "matching_displays", "label": "Larvitar",
+                          "level": 30, "source": "both"},
+            "controls": {"surrender": {
+                "selector": "#eco-desistir", "present": True,
+                "enabled": True, "policy": "permanently_blocked"}}}
+        registry.ingest(item)
+        row = registry.snapshot()["tabs"][0]
+        self.assertEqual(row["io_audit"]["hunt_hint"]["label"], "Larvitar")
+        self.assertEqual(row["io_audit"]["controls"]["surrender"]["policy"],
+                         "permanently_blocked")
+        self.assertEqual(row["advice"]["mode"], "dry_run")
+        self.assertTrue(all(not entry["action_authorized"]
+                            for entry in row["advisory_queue"]))
+
     def test_legacy_extension_xp_cannot_be_used_as_trainer(self):
         reg = Registry("test-token")
         data = payload(xp=100)
