@@ -78,12 +78,13 @@ A auditoria também é exibida separadamente para todas as abas IO registradas,
 em vez de exibir apenas a primeira. O estado dos controles continua sendo
 somente leitura e não concede poder ao executor live.
 
-## Pista de hunt atual no HUD (extensão 0.2.4)
+## Diagnóstico do encontro e estrutura do Mapa (extensão 0.2.5)
 
-Uma fixture pública do mesmo Poke Idle IO expõe `#hud-hunt` e `#eco-onde`
-com texto como `Larvitar · nível 30`. O agente usa esses seletores apenas
-para reconhecer indicadores **visuais**, sem acessar WebSocket, cookies,
-estado privado ou APIs internas do jogo.
+Uma fixture pública do Poke Idle IO expõe `#hud-hunt` e `#eco-onde`
+com texto como `Larvitar · nível 30`. Isso pode ser **o Pokémon do encontro**,
+e não o nome da hunt. O monitor corrige a interpretação anterior e apresenta
+essa leitura como **contexto visual do encontro**, sem associá-la a localização.
+Não acessa WebSocket, cookies, estado privado ou APIs internas do jogo.
 
 - Se dois indicadores contiverem o mesmo nome e nível, a pista terá
   `status: matching_displays` (concordância visual, não verificação).
@@ -97,9 +98,9 @@ caracteres restritos e nível de 1 a 10000. Não aceita HTML, URLs,
 e-mails, textos de chat, tokens, seletores nem campos extras.
 A leitura está disponível somente na rota `/app`.
 
-**Importante:** nome visual de Pokémon/local NÃO é `hunt_id` nem
-`slug`; dois indicadores concordantes NÃO comprovam identidade da conta
-ou da hunt no servidor. O novo dado não alimenta o ranking do comparador,
+**Importante:** o rótulo visível do encontro **não identifica hunt_id, área
+ou slug**, mesmo quando os dois indicadores coincidem. Não comprova a conta
+ou a hunt no servidor; o novo dado não alimenta o ranking do comparador,
 não promove controles para execução e não autoriza navegação.
 O primeiro teste com o DOM real do Chrome continua pendente.
 
@@ -107,3 +108,22 @@ Referência: fixture `test/fixtures/center-hunt.html` do
 [Rebosteio Launcher](https://github.com/souonailo/rebosteio-launcher-pokeidleio).
 Seletores tratados como candidatos até validação real; nenhuma rotina externa
 copiada ou importada.
+
+### Auditoria estrutural do menu Mapa
+
+Quando o modal `#modal .modal-caixa[data-modal="mapa"]` estiver aberto,
+a extensão inspeciona apenas `#modal-corpo` e informa **contagens**:
+`buttons`, `links` e `candidate_markers` (elementos com atributos
+`data-hunt`, `data-hunt-id` ou `data-slug`). Cada valor é limitado a 200.
+Nenhum texto, HTML, URL, slug ou nome é enviado ao servidor.
+
+O campo fechado `map_structure` recebe `status: observed`,
+`body_missing` ou `not_open`. Sem o mapa aberto, as contagens ficam zero.
+O servidor rejeita campos extras, valores inválidos ou estados incompatíveis
+com `map_state`. Essas contagens servem apenas para diagnosticar como é
+construída a UI real; **não provam quantidade de hunts, acesso ou autorização**.
+
+A leitura do DOM real após recarregar a extensão segue pendente. Até esse
+teste, os seletores são referências externas não confirmadas no Chrome do
+usuário. A política do executor continua bloqueando `Desistir`, troca de
+hunt, início de farm e qualquer operação financeira.
