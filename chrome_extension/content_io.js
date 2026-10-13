@@ -241,16 +241,44 @@
     return hidden ? "closed" : "open";
   }
 
+  // Candidatos DOM de HUD-hunt observados em fixture público do mesmo IO.
+  // Retorna uma pista de nome, NUNCA identidade autenticada, slug ou destino.
+  function readHuntHint(root) {
+    const find = selector => {
+      let node = null;
+      try { node = root.querySelector(selector); } catch (_err) {}
+      if (!node || typeof node.textContent !== "string") return null;
+      const raw = node.textContent.trim();
+      if (raw.length > 100) return null;
+      const match = raw.match(/^([\p{L}\p{N}][\p{L}\p{N} .'-]{0,47})\s*[·]\s*(?:nível|nivel|nv|level|lv)\s*(\d{1,5})\s*$/iu);
+      if (!match) return null;
+      const label = match[1].replace(/\s+/g, " ").trim();
+      const level = Number(match[2]);
+      if (!label || label.length > 48 || !Number.isInteger(level) || level < 1 || level > 10000) return null;
+      return {label, level};
+    };
+    const hud = find("#hud-hunt"), eco = find("#eco-onde");
+    if (!hud && !eco) return {status:"unavailable",label:null,level:null,source:"none"};
+    if (hud && eco && (hud.label !== eco.label || hud.level !== eco.level)) {
+      return {status:"ambiguous",label:null,level:null,source:"both"};
+    }
+    const item = hud || eco;
+    return {status:hud && eco ? "matching_displays" : "single_display",
+            label:item.label, level:item.level,
+            source:hud && eco ? "both" : hud ? "hud" : "eco"};
+  }
+
   function readAutomationAudit(root, path) {
     const onApp = path === "/app" || path.startsWith("/app/");
     if (!onApp) return {route:"not_app", farm_state:"unknown",
-                        map_state:"unknown", controls:{}};
+                        map_state:"unknown", hunt_hint:{status:"unavailable",label:null,level:null,source:"none"}, controls:{}};
     let panel = null;
     try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
     const panelText = typeof panel?.textContent === "string" ? panel.textContent : "";
     const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
     return {
       route:"app", farm_state:farming, map_state:readMapState(root),
+      hunt_hint:readHuntHint(root),
       controls:{
         trainer_panel:controlSummary(root,".tr-dados","read_only"),
         active_pokemon_panel:controlSummary(root,".ativo-info","read_only"),
