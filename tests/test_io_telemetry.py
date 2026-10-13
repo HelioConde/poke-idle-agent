@@ -122,6 +122,8 @@ class IoTelemetryTests(unittest.TestCase):
         ):
             self.assertEqual(sanitize_automation_audit(dict(base, hunt_hint=hint))["hunt_hint"], hint)
         for broken in (
+            {**matching, "status": ["matching_displays"]},
+            {**matching, "source": {"value": "both"}},
             {**matching, "label": "<img src=x>"},
             {**matching, "label": "trainer@email.com"},
             {**matching, "label": "x" * 60},
