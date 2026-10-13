@@ -108,6 +108,35 @@ class IoTelemetryTests(unittest.TestCase):
             with self.subTest(corrupted=corrupted), self.assertRaises(ValueError):
                 sanitize_automation_audit(corrupted)
 
+    def test_hunt_hud_hint_is_bounded_and_never_executes(self):
+        base = {"route": "app", "farm_state": "unknown",
+                "map_state": "closed", "controls": {}}
+        matching = {"status": "matching_displays", "label": "Larvitar",
+                    "level": 30, "source": "both"}
+        valid = dict(base, hunt_hint=matching)
+        self.assertEqual(sanitize_automation_audit(valid)["hunt_hint"], matching)
+        for hint in (
+            {"status": "single_display", "label": "Oddish", "level": 15, "source": "eco"},
+            {"status": "unavailable", "label": None, "level": None, "source": "none"},
+            {"status": "ambiguous", "label": None, "level": None, "source": "both"},
+        ):
+            self.assertEqual(sanitize_automation_audit(dict(base, hunt_hint=hint))["hunt_hint"], hint)
+        for broken in (
+            {**matching, "label": "<img src=x>"},
+            {**matching, "label": "trainer@email.com"},
+            {**matching, "label": "x" * 60},
+            {**matching, "level": True},
+            {**matching, "level": "30"},
+            {**matching, "source": "hud"},
+            {**matching, "url": "http://example.invalid"},
+            {"status": "single_display", "label": "Oddish", "level": 15, "source": "both"},
+            {"status": "unavailable", "label": "Larvitar", "level": None, "source": "none"},
+        ):
+            with self.subTest(broken=broken), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, hunt_hint=broken))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app", hunt_hint=matching))
+
     def test_automation_audit_is_closed_and_never_approves_control(self):
         audit = {"route": "app", "farm_state": "active", "controls": {
             "surrender": {"selector": "#eco-desistir", "present": True,
