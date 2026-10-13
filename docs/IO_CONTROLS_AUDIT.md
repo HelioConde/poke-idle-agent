@@ -127,3 +127,43 @@ A leitura do DOM real após recarregar a extensão segue pendente. Até esse
 teste, os seletores são referências externas não confirmadas no Chrome do
 usuário. A política do executor continua bloqueando `Desistir`, troca de
 hunt, início de farm e qualquer operação financeira.
+
+
+### Conferência com captura estática do DOM (13/10/2026)
+
+O usuário forneceu uma captura HTML da interface autenticada do IO.
+A análise foi **local**: nenhum HTML bruto, dado da conta, imagem base64,
+nick, saldo, URL de sessão, item privado ou token foi incorporado ao GitHub.
+
+Foram confirmados nesta captura: o botão `button[data-modal="mapa"]`,
+`#modal.hidden`, a caixa `#modal .modal-caixa[data-modal="mapa"]`,
+`#modal-corpo`, as áreas `.mapa-areas .mapa-area[data-regiao]` e os
+marcadores `#mapa-tela button.marcador[data-slug][data-travado]`.
+
+Na captura com modal FECHADO, existem 8 botões de regiões renderizados
+(2 sem a classe de trava) e 14 marcadores renderizados (8 com
+`data-travado="0"`, 1 com a classe `on`). Esses totais descrevem
+o **DOM pré-renderizado e filtrado**, não uma lista definitiva de hunts
+acessíveis nem a hunt que está sendo farmada.
+
+### Leitura refinada na extensão 0.2.6
+
+`map_structure` passa a disponibilizar, somente enquanto o Mapa está
+visivelmente aberto:
+
+- `rendered_regions` e `available_regions` — botões renderizados,
+  com ou sem a classe de bloqueio
+- `rendered_markers` e `unlocked_markers` — marcadores visíveis no
+  catálogo atual, separados por `data-travado`
+- `highlighted_markers` — quantidade de marcadores com classe `on`,
+  **sem presumir que significa hunt ativa**
+
+Todos os campos são contagens de 0 a 200. Não são transmitidos nomes,
+slugs, regiões, marcadores individuais, HTML ou coordenadas.
+O servidor permite o formato anterior da extensão 0.2.5 para
+compatibilidade, mas exige que os cinco campos novos sejam enviados juntos,
+com quantidades consistentes. Com o Mapa fechado, todas as contagens
+permanecem zeradas, mesmo que o jogo tenha montado os nós ocultos.
+
+A próxima validação é **no Chrome, com extensão recarregada e Mapa aberto
+manualmente**. Nenhum clique de navegação ou gameplay foi habilitado.
