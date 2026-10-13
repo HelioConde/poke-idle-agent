@@ -178,6 +178,7 @@ assert.deepEqual(audit.controls.hunt_map,{selector:'button[data-modal="mapa"]',p
 console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");
 
 assert.deepEqual(audit.hunt_hint,{status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(audit.map_structure,{status:"not_open",buttons:0,links:0,candidate_markers:0});
 assert.equal(audit.map_state,"unknown");
 assert.equal(audit.controls.native_revive.toggle_state,"unknown");
 
@@ -200,6 +201,7 @@ function makeMapDoc({hidden=false,mapButton=true,modalBox=true}={}) {
   return {querySelector(selector){return nodes[selector]||null;}};
 }
 const openMap=readAutomationAudit(makeMapDoc(),"/app");
+assert.deepEqual(openMap.map_structure,{status:"body_missing",buttons:0,links:0,candidate_markers:0});
 assert.equal(openMap.map_state,"open");
 assert.equal(openMap.controls.hunt_map.present,true);
 assert.equal(openMap.controls.map_dialog.present,true);
@@ -209,10 +211,12 @@ assert.equal(openMap.controls.native_return_hunt.toggle_state,"unknown");
 assert.equal(openMap.controls.surrender.policy,"permanently_blocked");
 const closedMap=readAutomationAudit(makeMapDoc({hidden:true}),"/app");
 assert.equal(closedMap.map_state,"closed");
+assert.equal(closedMap.map_structure.status,"not_open");
 assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,"closed");
 assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
 assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
   route:"not_app",farm_state:"unknown",map_state:"unknown",
+  map_structure:{status:"not_open",buttons:0,links:0,candidate_markers:0},
   hunt_hint:{status:"unavailable",label:null,level:null,source:"none"},controls:{}
 });
 console.log("IO DOM: mapa e automacoes nativas detectados somente em leitura");
@@ -242,3 +246,31 @@ assert.deepEqual(readAutomationAudit(hintDoc("trainer@email.com · nível 20",nu
 assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30",null),"/not-app").hunt_hint,
   {status:"unavailable",label:null,level:null,source:"none"});
 console.log("IO DOM: HUD de hunt observado como pista, sem ID nem autorizacao");
+
+
+// Com mapa ABERTO, somente conta categorias fixas; não percorre texto,
+// dados privados, links ou nomes. Mapa fechado nem consulta o corpo.
+let reads = 0;
+const mapTestDoc = {
+  querySelector(selector) {
+    if(selector === "#modal")return {hidden:false,classList:{contains(){return false;}}};
+    if(selector === '#modal .modal-caixa[data-modal="mapa"]')return {disabled:false};
+    if(selector === "#modal-corpo")return {querySelectorAll(kind){
+      reads++;
+      return Array(kind==="button"?7:kind==="a[href]"?3:2).fill({});
+    }};
+    return null;
+  }
+};
+const mapRead=readAutomationAudit(mapTestDoc,"/app");
+assert.deepEqual(mapRead.map_structure,
+  {status:"observed",buttons:7,links:3,candidate_markers:2});
+assert.equal(reads,3);
+assert.equal(mapRead.controls.surrender.policy,"permanently_blocked");
+const hiddenDoc={...mapTestDoc,querySelector(selector){
+  if(selector==="#modal")return {hidden:true,classList:{contains(){return false;}}};
+  return mapTestDoc.querySelector(selector);
+}};
+assert.equal(readAutomationAudit(hiddenDoc,"/app").map_structure.status,"not_open");
+assert.equal(reads,3);
+console.log("IO DOM: mapa aberto reporta somente contagens fechadas");
