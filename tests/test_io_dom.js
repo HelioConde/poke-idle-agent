@@ -203,7 +203,11 @@ function makeMapDoc({hidden=false,mapButton=true,modalBox=true}={}) {
   return {querySelector(selector){return nodes[selector]||null;}};
 }
 const openMap=readAutomationAudit(makeMapDoc(),"/app");
-assert.deepEqual(openMap.map_structure,{status:"body_missing",buttons:0,links:0,candidate_markers:0});
+assert.deepEqual(openMap.map_structure,{
+  status:"body_missing",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0
+});
 assert.equal(openMap.map_state,"open");
 assert.equal(openMap.controls.hunt_map.present,true);
 assert.equal(openMap.controls.map_dialog.present,true);
@@ -218,7 +222,9 @@ assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,
 assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
 assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
   route:"not_app",farm_state:"unknown",map_state:"unknown",
-  map_structure:{status:"not_open",buttons:0,links:0,candidate_markers:0},
+  map_structure:{status:"not_open",buttons:0,links:0,candidate_markers:0,
+    rendered_regions:0,available_regions:0,rendered_markers:0,
+    unlocked_markers:0,highlighted_markers:0},
   hunt_hint:{status:"unavailable",label:null,level:null,source:"none"},controls:{}
 });
 console.log("IO DOM: mapa e automacoes nativas detectados somente em leitura");
