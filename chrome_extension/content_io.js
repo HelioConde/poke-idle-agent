@@ -241,8 +241,27 @@
     return hidden ? "closed" : "open";
   }
 
-  // Candidatos DOM de HUD-hunt observados em fixture público do mesmo IO.
-  // Retorna uma pista de nome, NUNCA identidade autenticada, slug ou destino.
+  // Somente contagens de elementos visíveis no corpo do menu Mapa;
+  // não lê nomes, HTML, coordenadas, slugs nem emite qualquer clique.
+  function readMapStructure(root, mapState) {
+    const empty = status => ({status, buttons:0, links:0, candidate_markers:0});
+    if (mapState !== "open") return empty("not_open");
+    let body = null;
+    try { body = root.querySelector("#modal-corpo"); } catch (_err) {}
+    if (!body || typeof body.querySelectorAll !== "function") {
+      return empty("body_missing");
+    }
+    const count = selector => {
+      try { return Math.min(200, body.querySelectorAll(selector).length); }
+      catch (_err) { return 0; }
+    };
+    return {status:"observed",buttons:count("button"),
+      links:count("a[href]"),
+      candidate_markers:count("[data-hunt], [data-hunt-id], [data-slug]")};
+  }
+
+  // Os HUDs podem indicar o Pokémon do encontro, não o mapa/hunt.
+  // Nome exibido é apenas contexto de encontro, NUNCA slug ou destino.
   function readHuntHint(root) {
     const find = selector => {
       let node = null;
@@ -271,13 +290,16 @@
   function readAutomationAudit(root, path) {
     const onApp = path === "/app" || path.startsWith("/app/");
     if (!onApp) return {route:"not_app", farm_state:"unknown",
-                        map_state:"unknown", hunt_hint:{status:"unavailable",label:null,level:null,source:"none"}, controls:{}};
+                        map_state:"unknown", map_structure:readMapStructure(root,"unknown"),
+                        hunt_hint:{status:"unavailable",label:null,level:null,source:"none"}, controls:{}};
     let panel = null;
     try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
     const panelText = typeof panel?.textContent === "string" ? panel.textContent : "";
     const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
+    const mapState = readMapState(root);
     return {
-      route:"app", farm_state:farming, map_state:readMapState(root),
+      route:"app", farm_state:farming, map_state:mapState,
+      map_structure:readMapStructure(root,mapState),
       hunt_hint:readHuntHint(root),
       controls:{
         trainer_panel:controlSummary(root,".tr-dados","read_only"),
