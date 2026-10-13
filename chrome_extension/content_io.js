@@ -207,6 +207,154 @@
         xp_reason:xpReason}};
   }
 
+  // Referências independentes de launchers/Atlas do IO indicam os IDs abaixo.
+  // São SOMENTE pistas para leitura; devem ser confirmadas na versão atual do
+  // DOM antes de promover qualquer controle para execução.
+  function controlSummary(root, selector, policy, nativeToggle=false) {
+    let node = null;
+    try { node = root.querySelector(selector); } catch (_err) {}
+    const present = Boolean(node);
+    const enabled = Boolean(node && node.disabled !== true &&
+      node.getAttribute?.("aria-disabled") !== "true");
+    const report = {selector, present, enabled, policy};
+    if (nativeToggle) {
+      report.toggle_state = node && typeof node.checked === "boolean"
+        ? (node.checked ? "on" : "off") : "unknown";
+    }
+    return report;
+  }
+
+  function readMapState(root) {
+    let modal = null, mapBox = null;
+    try {
+      modal = root.querySelector("#modal");
+      mapBox = root.querySelector('#modal .modal-caixa[data-modal="mapa"]');
+    } catch (_err) {}
+    if (!modal) return "unknown";
+    if (!mapBox) return "closed";
+    const hidden = modal.hidden === true ||
+      modal.classList?.contains("hidden") === true ||
+      modal.getAttribute?.("aria-hidden") === "true" ||
+      modal.style?.display === "none" ||
+      mapBox.hidden === true ||
+      mapBox.classList?.contains("hidden") === true;
+    return hidden ? "closed" : "open";
+  }
+
+  // Somente contagens de elementos visíveis no corpo do menu Mapa;
+  // não lê nomes, HTML, coordenadas, slugs nem emite qualquer clique.
+  function readMapStructure(root, mapState) {
+    // Uma captura real mostrou o modal oculto mas com marcadores montados.
+    // Nunca contar DOM oculto como prova de hunts acessíveis.
+    const empty = status => ({
+      status, buttons:0, links:0, candidate_markers:0,
+      rendered_regions:0, available_regions:0, rendered_markers:0,
+      unlocked_markers:0, highlighted_markers:0
+    });
+    if (mapState !== "open") return empty("not_open");
+    let body = null;
+    try { body = root.querySelector("#modal-corpo"); } catch (_err) {}
+    if (!body || typeof body.querySelectorAll !== "function") {
+      return empty("body_missing");
+    }
+    const count = selector => {
+      try { return Math.min(200, body.querySelectorAll(selector).length); }
+      catch (_err) { return 0; }
+    };
+    return {status:"observed", buttons:count("button"),
+      links:count("a[href]"),
+      candidate_markers:count("[data-hunt], [data-hunt-id], [data-slug]"),
+      // Todas as métricas representam somente o mapa FILTRADO no DOM.
+      // Não ler atributos data-slug, textos ou links; não acionar elementos.
+      rendered_regions:count(".mapa-areas button.mapa-area[data-regiao]"),
+      available_regions:count(".mapa-areas button.mapa-area[data-regiao]:not(.mapa-area-travada)"),
+      rendered_markers:count("#mapa-tela button.marcador[data-slug][data-travado]"),
+      unlocked_markers:count('#mapa-tela button.marcador[data-slug][data-travado="0"]'),
+      highlighted_markers:count("#mapa-tela button.marcador.on[data-slug]")
+    };
+  }
+
+  // Os HUDs podem indicar o Pokémon do encontro, não o mapa/hunt.
+  // Nome exibido é apenas contexto de encontro, NUNCA slug ou destino.
+  function readHuntHint(root) {
+    const find = selector => {
+      let node = null;
+      try { node = root.querySelector(selector); } catch (_err) {}
+      if (!node || typeof node.textContent !== "string") return null;
+      const raw = node.textContent.trim();
+      if (raw.length > 100) return null;
+      const match = raw.match(/^([\p{L}\p{N}][\p{L}\p{N} .'-]{0,47})\s*[·]\s*(?:nível|nivel|nv|level|lv)\s*(\d{1,5})\s*$/iu);
+      if (!match) return null;
+      const label = match[1].replace(/\s+/g, " ").trim();
+      const level = Number(match[2]);
+      if (!label || label.length > 48 || !Number.isInteger(level) || level < 1 || level > 10000) return null;
+      return {label, level};
+    };
+    const hud = find("#hud-hunt"), eco = find("#eco-onde");
+    if (!hud && !eco) return {status:"unavailable",label:null,level:null,source:"none"};
+    if (hud && eco && (hud.label !== eco.label || hud.level !== eco.level)) {
+      return {status:"ambiguous",label:null,level:null,source:"both"};
+    }
+    const item = hud || eco;
+    return {status:hud && eco ? "matching_displays" : "single_display",
+            label:item.label, level:item.level,
+            source:hud && eco ? "both" : hud ? "hud" : "eco"};
+  }
+
+  // Estado visual de cena, NÃO confirmação de batalha/farm no servidor.
+  // Derivado da estrutura estática vista no HTML real do Poke Idle IO.
+  // Não lê texto, nomes, id de conta, dados de hunt ou atributos privados.
+  function readSceneIndicator(root) {
+    let stage = null, cure = null;
+    try {
+      stage = root.querySelector("#palco");
+      cure = root.querySelector("#centro-curar");
+    } catch (_err) { return "unknown"; }
+    if (!stage || !stage.classList) return "unknown";
+    const has = name => stage.classList.contains(name) === true;
+    const cureVisible = !!(cure &&
+      cure.hidden !== true &&
+      cure.classList?.contains("hidden") !== true &&
+      cure.getAttribute?.("aria-hidden") !== "true" &&
+      cure.style?.display !== "none");
+    const hunt = has("hunt-ativa");
+    const center = has("centro-ativo") && cureVisible;
+    if ((hunt && center) || (has("centro-ativo") && hunt)) return "conflict";
+    if (center) return "center_scene";
+    if (hunt && !cureVisible && !has("centro-ativo")) return "hunt_scene";
+    return "unknown";
+  }
+
+  function readAutomationAudit(root, path) {
+    const onApp = path === "/app" || path.startsWith("/app/");
+    if (!onApp) return {route:"not_app", farm_state:"unknown",
+                        map_state:"unknown", scene_indicator:"unknown", map_structure:readMapStructure(root,"unknown"),
+                        hunt_hint:{status:"unavailable",label:null,level:null,source:"none"}, controls:{}};
+    let panel = null;
+    try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
+    const panelText = typeof panel?.textContent === "string" ? panel.textContent : "";
+    const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
+    const mapState = readMapState(root);
+    return {
+      route:"app", farm_state:farming, scene_indicator:readSceneIndicator(root), map_state:mapState,
+      map_structure:readMapStructure(root,mapState),
+      hunt_hint:readHuntHint(root),
+      controls:{
+        trainer_panel:controlSummary(root,".tr-dados","read_only"),
+        active_pokemon_panel:controlSummary(root,".ativo-info","read_only"),
+        inventory:controlSummary(root,"#btn-bolsa","read_only"),
+        surrender:controlSummary(root,"#eco-desistir","permanently_blocked"),
+        hunt_map:controlSummary(root,'button[data-modal="mapa"]',"read_only"),
+        map_dialog:controlSummary(root,'#modal .modal-caixa[data-modal="mapa"]',"read_only"),
+        native_capture_until:controlSummary(root,"#auto-ball-captura","read_only",true),
+        native_capture_repeat:controlSummary(root,"#auto-ball-sem-parar","read_only",true),
+        native_revive:controlSummary(root,"#auto-revive","read_only",true),
+        native_potion:controlSummary(root,"#auto-potion","read_only",true),
+        native_return_hunt:controlSummary(root,"#auto-voltar-hunt","read_only",true)
+      }
+    };
+  }
+
   if (typeof chrome !== "undefined" && chrome.runtime?.onMessage && typeof document !== "undefined") {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (!message || message.type !== "IGA_READ_IO_DOM") return false;
@@ -215,6 +363,12 @@
       respond(diagnose(document, path));
       return false;
     });
+    chrome.runtime.onMessage.addListener((message, sender, respond) => {
+      if (!message || message.type !== "IGA_READ_IO_AUTOMATION_AUDIT") return false;
+      const path = typeof location === "undefined" ? "/" : location.pathname;
+      respond(readAutomationAudit(document, path));
+      return false;
+    });
   }
-  if (typeof module !== "undefined") module.exports = {DOM_READER_VERSION, toNumber, extractFromLines, scanDocument, diagnose};
+  if (typeof module !== "undefined") module.exports = {DOM_READER_VERSION, toNumber, extractFromLines, scanDocument, diagnose, readAutomationAudit};
 })();

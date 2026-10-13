@@ -201,7 +201,7 @@ O painel exibe uma sugestão de ação em **dry-run**, que nunca clica no jogo.
 
 1. Pare o monitor no terminal com Ctrl+C.
 2. Rode git pull origin main.
-3. Abra chrome://extensions e clique em **Recarregar** na extensão Idle Game Agent (versão 0.2.2).
+3. Abra chrome://extensions e clique em **Recarregar** na extensão Idle Game Agent (versão 0.2.7).
 4. Dê F5 na aba aberta do Poke Idle IO, após salvar seu jogo.
 5. Abra o popup da extensão e use **Testar conexão**; depois use **Sincronizar agora**. O popup informa, sem expor a chave, se falta emparelhamento, se a chave foi rejeitada, se o servidor local está inacessível ou se a sincronização foi confirmada.
 6. Rode .\OBSERVAR-IO-CHROME.bat no PowerShell.
@@ -370,3 +370,72 @@ Se as métricas forem vazias, a coluna **Diagnóstico** diferenciará:
 
 Mesmo quando detecta Canvas, o coletor ainda não lê pixels de abas inativas
 nem opera a interface do jogo. Não publique capturas com dados privados.
+
+
+### Análise de XP/h por janela (somente leitura)
+
+O monitor IO exibe a taxa curta e médias de 5, 15 e 60 minutos quando
+recebe tempo de amostragem suficiente (no mínimo 80% de cada janela).
+Não apresenta uma média de 60 min com poucos segundos de dados.
+O histórico em RAM é separado por perfil, janela e aba e reiniciado após
+troca de nível, redução de XP, troca de barra ou perda de sincronização.
+Ainda não existe confirmação automática da identidade do treinador;
+por isso essas médias são observações **por aba**, não resultados atribuídos
+de forma definitiva a uma conta ou hunt. Várias abas IO aparecem
+separadamente na seção de auditoria. Nenhum comando no jogo é executado.
+
+As referências externas estudadas foram Launcher Alt: PokeIdle,
+Hunt Atlas e Rebosteio Launcher (detalhes em
+`docs/IO_CONTROLS_AUDIT.md`). A extensão não incorpora executores
+dessas bibliotecas.
+
+### Comparador de hunts IO e fila de revisão
+
+A seção **Qual hunt rende mais?** utiliza contas cadastradas em
+`data/accounts.json` e medições manuais opcionais de
+`data/io_hunt_measurements.json`. Os dados devem pertencer à mesma conta,
+Pokémon ativo e hunts desbloqueadas; registros de demonstração não entram no
+ranking. A fila consultiva por aba alerta sobre HP baixo, farm desconhecido e
+quedas de XP/h entre médias maduras, **sem clicar no jogo**. A associação
+entre a conta cadastrada e a aba Chrome ainda não é comprovada.
+
+Guia: [Comparador de hunts IO](docs/IO_HUNT_COMPARISON.md).
+
+### Inspeção de Mapa e encontro (extensão 0.2.5)
+
+O indicador `#hud-hunt` ou `#eco-onde` pode exibir o **Pokémon do encontro**
+(como `Larvitar · nível 30`); **não é o ID da hunt**. O painel não o
+utiliza para associar XP/h a uma área nem para decidir uma viagem.
+Com o menu Mapa aberto manualmente, a extensão coleta somente a quantidade
+de botões, links e atributos candidatos existentes em `#modal-corpo`.
+Não copia nomes de hunts, HTML, slugs, URLs ou dados privados.
+Sem mapa aberto, não inspeciona o corpo. Essas observações continuam
+read-only e não habilitam o executor do jogo. Detalhes na
+[Auditoria de controles IO](docs/IO_CONTROLS_AUDIT.md).
+
+### Diagnóstico de auditoria IO ausente (extensão 0.2.8)
+
+A leitura `observation.content_state: responded` **não comprova** que
+`io_audit` chegou ao servidor. São duas mensagens distintas do content
+script: `IGA_READ_IO_DOM` (XP) e
+`IGA_READ_IO_AUTOMATION_AUDIT` (controles e mapa). Se a aba ainda está
+usando um script antigo, o XP pode funcionar e a auditoria não aparecer.
+
+No popup, abra **Ver diagnóstico técnico**. Os indicadores
+`last_audit_status`, `last_audit_received` e `last_audit_missing`
+mostram, respectivamente, o estado da auditoria e as quantidades de
+respostas recebidas/ausentes. A conexão pode continuar como
+`sync_confirmed` mesmo quando a auditoria está faltando.
+
+1. Confirme a versão exibida dentro do popup, não só o
+   `manifest.json` do disco. Recarregue a extensão correta, da worktree
+   `poke-idle-agent-xp/chrome_extension`, em `chrome://extensions`.
+2. Como a extensão não injeta scripts na aba já aberta ao ser recarregada,
+   atualize a aba `/app` **somente quando for seguro interromper sua
+   interface de jogo**. Nunca usar Desistir.
+3. Clique **Sincronizar agora**, verifique `/api/tabs` e o painel. Se o
+   resultado continuar vazio, veja `last_audit_status` no popup antes
+   de iniciar outro servidor ou mexer no emparelhamento.
+
+Não copie a chave de emparelhamento, HTML completo, cookies ou dados
+da conta para issues ou logs públicos.

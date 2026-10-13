@@ -78,6 +78,7 @@ jobs:
           node --check chrome_extension/background.js
           node --check chrome_extension/popup.js
           node --check chrome_extension/content_io.js
+          node --check public/app.js
           node tests/test_extension_rules.js
           node tests/test_io_dom.js
           node --check vendor/pokegrid/iv-math.js

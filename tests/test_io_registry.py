@@ -51,6 +51,92 @@ class RegistryTelemetryTests(unittest.TestCase):
         self.assertEqual(row["xp_per_hour"], 3000)
         self.assertEqual(row["advice"]["action"], "track_farm")
 
+    def test_rolling_rates_require_sufficient_real_observation_time(self):
+        registry = Registry("test-token")
+        # 61 amostras em uma hora simulada: a janela de 60m não aparece
+        # antes de cobrir 80% da duração solicitada.
+        for minute in range(61):
+            with patch("app.tab_registry.time.monotonic", return_value=100 + minute * 60):
+                registry.ingest(payload(xp=100 + minute * 10))
+                tab = registry.snapshot()["tabs"][0]
+                rates = tab["xp_windows"]
+                last_rate = tab["xp_per_hour"]
+            if minute < 4:
+                self.assertNotIn("5m", rates)
+            if minute < 12:
+                self.assertNotIn("15m", rates)
+            if minute < 48:
+                self.assertNotIn("60m", rates)
+        self.assertEqual(rates, {"5m": 600, "15m": 600, "60m": 600})
+        self.assertEqual(last_rate, 600)
+
+    def test_rolling_rates_reset_on_xp_loss_and_level_change(self):
+        registry = Registry("test-token")
+        for minute in range(5):
+            with patch("app.tab_registry.time.monotonic", return_value=100 + minute * 60):
+                registry.ingest(payload(xp=100 + minute * 10))
+        with patch("app.tab_registry.time.monotonic", return_value=401):
+            registry.ingest(payload(xp=80))
+            result = registry.snapshot()["tabs"][0]
+        self.assertIsNone(result["xp_per_hour"])
+        self.assertEqual(result["xp_windows"], {})
+        progressed = payload(xp=150)
+        progressed["tabs"][0]["telemetry"]["stats"]["level"] = 13
+        with patch("app.tab_registry.time.monotonic", return_value=461):
+            registry.ingest(progressed)
+            result = registry.snapshot()["tabs"][0]
+        self.assertIsNone(result["xp_per_hour"])
+        self.assertEqual(result["xp_windows"], {})
+
+    def test_rolling_rates_do_not_mix_different_chrome_windows(self):
+        registry = Registry("test-token")
+        with patch("app.tab_registry.time.monotonic", return_value=100):
+            registry.ingest(payload(100))
+        double = payload(150)
+        another = payload(900)["tabs"][0]
+        another["window_id"] = 21
+        double["tabs"].append(another)
+        with patch("app.tab_registry.time.monotonic", return_value=160):
+            registry.ingest(double)
+            rows = registry.snapshot()["tabs"]
+        by_window = {tab["window_id"]: tab for tab in rows}
+        self.assertEqual(by_window[20]["xp_per_hour"], 3000)
+        self.assertIsNone(by_window[21]["xp_per_hour"])
+        self.assertEqual(by_window[21]["xp_windows"], {})
+
+    def test_disappearing_tab_clears_historical_window(self):
+        registry = Registry("test-token")
+        with patch("app.tab_registry.time.monotonic", return_value=100):
+            registry.ingest(payload(100))
+        missing = payload()
+        missing["tabs"] = []
+        with patch("app.tab_registry.time.monotonic", return_value=110):
+            registry.ingest(missing)
+        with patch("app.tab_registry.time.monotonic", return_value=160):
+            registry.ingest(payload(200))
+            result = registry.snapshot()["tabs"][0]
+        self.assertIsNone(result["xp_per_hour"])
+        self.assertEqual(result["xp_windows"], {})
+
+    def test_hunt_hint_reaches_registry_without_creating_action(self):
+        registry = Registry("test-token")
+        item = payload()
+        item["tabs"][0]["io_audit"] = {
+            "route": "app", "farm_state": "active", "map_state": "closed",
+            "hunt_hint": {"status": "matching_displays", "label": "Larvitar",
+                          "level": 30, "source": "both"},
+            "controls": {"surrender": {
+                "selector": "#eco-desistir", "present": True,
+                "enabled": True, "policy": "permanently_blocked"}}}
+        registry.ingest(item)
+        row = registry.snapshot()["tabs"][0]
+        self.assertEqual(row["io_audit"]["hunt_hint"]["label"], "Larvitar")
+        self.assertEqual(row["io_audit"]["controls"]["surrender"]["policy"],
+                         "permanently_blocked")
+        self.assertEqual(row["advice"]["mode"], "dry_run")
+        self.assertTrue(all(not entry["action_authorized"]
+                            for entry in row["advisory_queue"]))
+
     def test_legacy_extension_xp_cannot_be_used_as_trainer(self):
         reg = Registry("test-token")
         data = payload(xp=100)

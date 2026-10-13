@@ -5,6 +5,7 @@ Nesta etapa act é DRY-RUN; nenhum comando é enviado ao jogo.
 """
 from __future__ import annotations
 import math
+import re
 
 ALLOWED = {
     "level": 10_000,
@@ -103,6 +104,172 @@ XP_REASONS = frozenset({
 TELEMETRY_PROTOCOL_VERSION = 2
 DOM_READER_VERSIONS = frozenset({"trainer-xp-scoped-v1", "unknown"})
 CONTENT_STATES = frozenset({"responded", "unavailable", "outdated", "not_app"})
+
+AUDIT_SELECTORS = {
+    "trainer_panel": ".tr-dados",
+    "active_pokemon_panel": ".ativo-info",
+    "inventory": "#btn-bolsa",
+    "surrender": "#eco-desistir",
+    "hunt_map": 'button[data-modal="mapa"]',
+    "map_dialog": '#modal .modal-caixa[data-modal="mapa"]',
+    "native_capture_until": "#auto-ball-captura",
+    "native_capture_repeat": "#auto-ball-sem-parar",
+    "native_revive": "#auto-revive",
+    "native_potion": "#auto-potion",
+    "native_return_hunt": "#auto-voltar-hunt",
+}
+NATIVE_TOGGLE_CONTROLS = frozenset({
+    "native_capture_until", "native_capture_repeat",
+    "native_revive", "native_potion", "native_return_hunt",
+})
+MAP_STATES = frozenset({"unknown", "open", "closed"})
+SCENE_INDICATORS = frozenset({"unknown", "hunt_scene", "center_scene", "conflict"})
+
+
+
+HUNT_HINT_LABEL = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .'-]{0,47}\Z")
+HUNT_HINT_STATUSES = frozenset({"unavailable", "ambiguous", "matching_displays", "single_display"})
+HUNT_HINT_SOURCES = frozenset({"none", "both", "hud", "eco"})
+
+
+def sanitize_hunt_hint(value: object) -> dict:
+    """Aceita somente nome/nível estritamente reduzidos do HUD público do jogo.
+
+    Não há slug, token, URL, HTML nem identidade comprovada. A presença desse
+    objeto NUNCA habilita uma ação no adaptador.
+    """
+    if not isinstance(value, dict) or set(value) != {"status", "label", "level", "source"}:
+        raise ValueError("Pista de hunt inválida")
+    status, label, level, source = (
+        value["status"], value["label"], value["level"], value["source"])
+    if (not isinstance(status, str) or status not in HUNT_HINT_STATUSES or
+            not isinstance(source, str) or source not in HUNT_HINT_SOURCES):
+        raise ValueError("Estado de hunt inválido")
+    if status == "unavailable":
+        valid = source == "none" and label is None and level is None
+    elif status == "ambiguous":
+        valid = source == "both" and label is None and level is None
+    else:
+        valid = ((status != "matching_displays" or source == "both") and
+                 (status != "single_display" or source in {"hud", "eco"}) and
+                 isinstance(label, str) and HUNT_HINT_LABEL.fullmatch(label) is not None and
+                 label == label.strip() and
+                 type(level) is int and 1 <= level <= 10000)
+    if not valid:
+        raise ValueError("Pista de hunt inconsistente")
+    return dict(value)
+
+
+MAP_STRUCTURE_STATUSES = frozenset({"not_open", "body_missing", "observed"})
+MAP_STRUCTURE_BASE_FIELDS = frozenset({"buttons", "links", "candidate_markers"})
+MAP_STRUCTURE_DETAIL_FIELDS = frozenset({
+    "rendered_regions", "available_regions", "rendered_markers",
+    "unlocked_markers", "highlighted_markers",
+})
+
+
+def sanitize_map_structure(value: object, map_state: str) -> dict:
+    """Contagens fechadas do mapa; jamais recebe slugs, HTML ou identificadores."""
+    if not isinstance(value, dict) or "status" not in value:
+        raise ValueError("Estrutura do mapa inválida")
+    fields = set(value) - {"status"}
+    # Compatibilidade com leitores 0.2.5. Os novos campos são grupo fechado;
+    # enviar uma seleção parcial ou outros atributos deve ser rejeitado.
+    if fields not in (set(MAP_STRUCTURE_BASE_FIELDS),
+                      set(MAP_STRUCTURE_BASE_FIELDS | MAP_STRUCTURE_DETAIL_FIELDS)):
+        raise ValueError("Campos de estrutura do mapa inválidos")
+    status = value["status"]
+    if not isinstance(status, str) or status not in MAP_STRUCTURE_STATUSES:
+        raise ValueError("Status de estrutura do mapa inválido")
+    for key in fields:
+        number = value[key]
+        if type(number) is not int or not 0 <= number <= 200:
+            raise ValueError("Contagem de elementos do mapa inválida")
+    if (status in {"observed", "body_missing"} and map_state != "open" or
+            status == "not_open" and map_state == "open"):
+        raise ValueError("Estrutura do mapa incompatível com estado")
+    if status != "observed" and any(value[key] != 0 for key in fields):
+        raise ValueError("Contagens indisponíveis devem ser zero")
+    if MAP_STRUCTURE_DETAIL_FIELDS.issubset(fields):
+        if (value["available_regions"] > value["rendered_regions"] or
+                value["unlocked_markers"] > value["rendered_markers"] or
+                value["highlighted_markers"] > value["rendered_markers"] or
+                value["rendered_markers"] > value["candidate_markers"]):
+            raise ValueError("Contagens do mapa inconsistentes")
+    return dict(value)
+
+
+def sanitize_automation_audit(value: object) -> dict:
+    """Lista fechada de seletores: observação DOM, nunca autorização de clique.
+
+    Compatível com a extensão anterior, que ainda não enviava map_state e
+    informava hunt_map como não auditado. O payload não pode introduzir
+    seletores arbitrários, texto privado, HTML nem mudanças de política.
+    """
+    base = {"route", "farm_state", "controls"}
+    if (not isinstance(value, dict) or not base.issubset(value) or
+            set(value) - base - {"map_state", "hunt_hint", "map_structure", "scene_indicator"}):
+        raise ValueError("Auditoria de controles inválida")
+    if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
+        raise ValueError("Estado da auditoria inválido")
+    if "map_state" in value and value["map_state"] not in MAP_STATES:
+        raise ValueError("Estado do mapa inválido")
+    if "scene_indicator" in value:
+        scene = value["scene_indicator"]
+        if not isinstance(scene, str) or scene not in SCENE_INDICATORS:
+            raise ValueError("Indicador de cena inválido")
+        if value["route"] != "app" and scene != "unknown":
+            raise ValueError("Rota não permite cena de hunt")
+    if "hunt_hint" in value:
+        hint = sanitize_hunt_hint(value["hunt_hint"])
+        if value["route"] != "app" and hint["status"] != "unavailable":
+            raise ValueError("Rota não permite pista de hunt")
+    if "map_structure" in value:
+        state = value.get("map_state", "unknown")
+        structure = sanitize_map_structure(value["map_structure"], state)
+        if value["route"] != "app" and structure["status"] != "not_open":
+            raise ValueError("Rota não permite estrutura do mapa")
+    controls = value["controls"]
+    if not isinstance(controls, dict) or set(controls) - AUDIT_SELECTORS.keys():
+        raise ValueError("Controles auditados inválidos")
+    cleaned = {}
+    for name, item in controls.items():
+        if not isinstance(item, dict):
+            raise ValueError("Controle auditado inválido")
+        required = {"selector", "present", "enabled", "policy"}
+        extras = {"toggle_state"} if name in NATIVE_TOGGLE_CONTROLS else set()
+        if set(item) != required | (extras if "toggle_state" in item else set()):
+            raise ValueError("Formato de controle inválido")
+        expected = AUDIT_SELECTORS[name]
+        legacy_map = name == "hunt_map" and item["selector"] is None
+        if item["selector"] != expected and not legacy_map:
+            raise ValueError("Seletor auditado inválido")
+        if type(item["present"]) is not bool or type(item["enabled"]) is not bool:
+            raise ValueError("Sinal de controle inválido")
+        if not item["present"] and item["enabled"]:
+            raise ValueError("Controle ausente não pode estar habilitado")
+        policy = ("permanently_blocked" if name == "surrender" else
+                  "not_audited" if legacy_map else "read_only")
+        if item["policy"] != policy or (legacy_map and item["present"]):
+            raise ValueError("Política de controle inválida")
+        if "toggle_state" in item:
+            if item["toggle_state"] not in {"on", "off", "unknown"}:
+                raise ValueError("Estado de automação nativa inválido")
+            if not item["present"] and item["toggle_state"] != "unknown":
+                raise ValueError("Automação nativa ausente não tem estado")
+        cleaned[name] = dict(item)
+    result = {"route": value["route"], "farm_state": value["farm_state"],
+              "controls": cleaned}
+    if "map_state" in value:
+        result["map_state"] = value["map_state"]
+    if "scene_indicator" in value:
+        result["scene_indicator"] = value["scene_indicator"]
+    if "hunt_hint" in value:
+        result["hunt_hint"] = sanitize_hunt_hint(value["hunt_hint"])
+    if "map_structure" in value:
+        result["map_structure"] = sanitize_map_structure(
+            value["map_structure"], value.get("map_state", "unknown"))
+    return result
 
 
 def sanitize_observation(value: object) -> dict:

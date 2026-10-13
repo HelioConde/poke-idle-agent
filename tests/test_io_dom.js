@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const {toNumber, extractFromLines, scanDocument, diagnose} = require("../chrome_extension/content_io.js");
+const {toNumber, extractFromLines, scanDocument, diagnose, readAutomationAudit} = require("../chrome_extension/content_io.js");
 
 assert.equal(toNumber("1.234"), 1234);
 assert.equal(toNumber("1.234,5"), 1234.5);
@@ -164,3 +164,161 @@ const uncertainHud = {...scopedHud,
 assert.deepEqual(scanDocument(uncertainHud), {level:19});
 assert.equal(diagnose(uncertainHud,"/app").diagnostic.xp_ambiguous,true);
 console.log("IO DOM: XP treinador separado de XP Pokemon por tr-dados");
+
+const auditDoc={querySelector(selector){
+  if(selector==="#eco-painel") return {textContent:"SESSÃO caçando"};
+  if(selector===".tr-dados" || selector==="#btn-bolsa" || selector==="#eco-desistir") return {disabled:false};
+  return null;
+}};
+const audit=readAutomationAudit(auditDoc,"/app");
+assert.equal(audit.route,"app");
+assert.equal(audit.farm_state,"active");
+assert.deepEqual(audit.controls.surrender,{selector:"#eco-desistir",present:true,enabled:true,policy:"permanently_blocked"});
+assert.deepEqual(audit.controls.hunt_map,{selector:'button[data-modal="mapa"]',present:false,enabled:false,policy:"read_only"});
+console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");
+
+assert.deepEqual(audit.hunt_hint,{status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(audit.map_structure,{status:"not_open",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0});
+assert.equal(audit.map_state,"unknown");
+assert.equal(audit.controls.native_revive.toggle_state,"unknown");
+
+// Estrutura do modal Mapa observada em referências externas do MESMO jogo.
+// Nunca interagir com os botões; aqui somente verificamos presença e estados.
+function makeMapDoc({hidden=false,mapButton=true,modalBox=true}={}) {
+  const nodes={
+    "#eco-painel":{textContent:"caçando"},
+    ".tr-dados":{disabled:false},
+    "#eco-desistir":{disabled:false},
+    "#modal":{hidden:false,classList:{contains(name){return hidden&&name==="hidden";}}},
+    "#auto-revive":{checked:true,disabled:false},
+    "#auto-potion":{checked:false,disabled:false},
+    "#auto-ball-captura":{checked:true,disabled:false},
+    "#auto-ball-sem-parar":{checked:false,disabled:false},
+    "#auto-voltar-hunt":{disabled:false}
+  };
+  if(mapButton)nodes['button[data-modal="mapa"]']={disabled:false};
+  if(modalBox)nodes['#modal .modal-caixa[data-modal="mapa"]']={disabled:false};
+  return {querySelector(selector){return nodes[selector]||null;}};
+}
+const openMap=readAutomationAudit(makeMapDoc(),"/app");
+assert.deepEqual(openMap.map_structure,{
+  status:"body_missing",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0
+});
+assert.equal(openMap.map_state,"open");
+assert.equal(openMap.controls.hunt_map.present,true);
+assert.equal(openMap.controls.map_dialog.present,true);
+assert.equal(openMap.controls.native_revive.toggle_state,"on");
+assert.equal(openMap.controls.native_potion.toggle_state,"off");
+assert.equal(openMap.controls.native_return_hunt.toggle_state,"unknown");
+assert.equal(openMap.controls.surrender.policy,"permanently_blocked");
+const closedMap=readAutomationAudit(makeMapDoc({hidden:true}),"/app");
+assert.equal(closedMap.map_state,"closed");
+assert.equal(closedMap.map_structure.status,"not_open");
+assert.equal(readAutomationAudit(makeMapDoc({modalBox:false}),"/app").map_state,"closed");
+assert.equal(readAutomationAudit(makeMapDoc({mapButton:false}),"/app").controls.hunt_map.present,false);
+assert.deepEqual(readAutomationAudit(makeMapDoc(),"/login"),{
+  route:"not_app",farm_state:"unknown",map_state:"unknown",scene_indicator:"unknown",
+  map_structure:{status:"not_open",buttons:0,links:0,candidate_markers:0,
+    rendered_regions:0,available_regions:0,rendered_markers:0,
+    unlocked_markers:0,highlighted_markers:0},
+  hunt_hint:{status:"unavailable",label:null,level:null,source:"none"},controls:{}
+});
+console.log("IO DOM: mapa e automacoes nativas detectados somente em leitura");
+
+
+// O indicador do local é apenas pista, jamais slug ou identidade de conta.
+// As amostras são fixtures locais, não leitura do jogo real.
+function hintDoc(hud,eco){
+  return {querySelector(selector){
+    if(selector==="#hud-hunt")return hud===null?null:{textContent:hud};
+    if(selector==="#eco-onde")return eco===null?null:{textContent:eco};
+    return null;
+  }};
+}
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30","Larvitar · nível 30"),"/app").hunt_hint,
+  {status:"matching_displays",label:"Larvitar",level:30,source:"both"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30",null),"/app").hunt_hint,
+  {status:"single_display",label:"Larvitar",level:30,source:"hud"});
+assert.deepEqual(readAutomationAudit(hintDoc(null,"Oddish · Lv 15"),"/app").hunt_hint,
+  {status:"single_display",label:"Oddish",level:15,source:"eco"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30","Oddish · nível 30"),"/app").hunt_hint,
+  {status:"ambiguous",label:null,level:null,source:"both"});
+assert.deepEqual(readAutomationAudit(hintDoc("<script> · nível 20",null),"/app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(readAutomationAudit(hintDoc("trainer@email.com · nível 20",null),"/app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+assert.deepEqual(readAutomationAudit(hintDoc("Larvitar · nível 30",null),"/not-app").hunt_hint,
+  {status:"unavailable",label:null,level:null,source:"none"});
+console.log("IO DOM: HUD de hunt observado como pista, sem ID nem autorizacao");
+
+
+// Com mapa ABERTO, somente conta categorias fixas; não percorre texto,
+// dados privados, links ou nomes. Mapa fechado nem consulta o corpo.
+let reads = 0;
+const mapTestDoc = {
+  querySelector(selector) {
+    if(selector === "#modal")return {hidden:false,classList:{contains(){return false;}}};
+    if(selector === '#modal .modal-caixa[data-modal="mapa"]')return {disabled:false};
+    if(selector === "#modal-corpo")return {querySelectorAll(kind){
+      reads++;
+      // Estrutura reconstruída a partir de um HTML real; nenhum dado da conta
+      // ou HTML bruto é compartilhado com o repositório.
+      const counts={
+        "button":24, "a[href]":0,
+        "[data-hunt], [data-hunt-id], [data-slug]":14,
+        ".mapa-areas button.mapa-area[data-regiao]":8,
+        ".mapa-areas button.mapa-area[data-regiao]:not(.mapa-area-travada)":2,
+        "#mapa-tela button.marcador[data-slug][data-travado]":14,
+        '#mapa-tela button.marcador[data-slug][data-travado="0"]':8,
+        "#mapa-tela button.marcador.on[data-slug]":1
+      };
+      return Array(counts[kind]||0).fill({});
+    }};
+    return null;
+  }
+};
+const mapRead=readAutomationAudit(mapTestDoc,"/app");
+assert.deepEqual(mapRead.map_structure,
+  {status:"observed",buttons:24,links:0,candidate_markers:14,
+   rendered_regions:8,available_regions:2,rendered_markers:14,
+   unlocked_markers:8,highlighted_markers:1});
+assert.equal(reads,8);
+assert.equal(mapRead.controls.surrender.policy,"permanently_blocked");
+const hiddenDoc={...mapTestDoc,querySelector(selector){
+  if(selector==="#modal")return {hidden:true,classList:{contains(){return false;}}};
+  return mapTestDoc.querySelector(selector);
+}};
+assert.equal(readAutomationAudit(hiddenDoc,"/app").map_structure.status,"not_open");
+assert.equal(reads,8);
+assert.deepEqual(readAutomationAudit(hiddenDoc,"/app").map_structure,{
+  status:"not_open",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0
+});
+console.log("IO DOM: contagens de regiões/locais só quando mapa aberto");
+
+// Cena de hunt != farm confirmado: apenas classes estáticas da tela.
+// Este fixture não representa autorização de gameplay.
+function sceneDoc({stageClass="hunt-ativa",cureHidden=true,curePresent=true}={}){
+  return {querySelector(selector){
+    if(selector==="#palco")return {classList:{contains(name){return stageClass.split(" ").includes(name);}}};
+    if(selector==="#centro-curar" && curePresent)return {
+      hidden:false, classList:{contains(name){return name==="hidden" && cureHidden;}}
+    };
+    return null;
+  }};
+}
+assert.equal(readAutomationAudit(sceneDoc(),"/app").scene_indicator,"hunt_scene");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo",cureHidden:false}),"/app").scene_indicator,"center_scene");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo hunt-ativa",cureHidden:false}),"/app").scene_indicator,"conflict");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"centro-ativo",cureHidden:true}),"/app").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc({stageClass:"",cureHidden:true}),"/app").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/login").scene_indicator,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/app").farm_state,"unknown");
+assert.equal(readAutomationAudit(sceneDoc(),"/app").controls.surrender.policy,"permanently_blocked");
+console.log("IO DOM: cena visual não confirma farm nem habilita execução");
+

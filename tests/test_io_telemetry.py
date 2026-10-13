@@ -1,6 +1,7 @@
 import math
 import unittest
-from app.io_telemetry import dry_run_decision, measured_xp_per_hour, sanitize, sanitize_observation
+from app.io_telemetry import (dry_run_decision, measured_xp_per_hour, sanitize,
+                              sanitize_observation, sanitize_automation_audit)
 
 class IoTelemetryTests(unittest.TestCase):
     def test_empty_dom_read_is_not_fabricated(self):
@@ -74,3 +75,170 @@ class IoTelemetryTests(unittest.TestCase):
                     "permission_required"):
             self.assertIn(key, rec)
         self.assertEqual(rec["action"], "track_farm")
+
+    def test_map_and_native_controls_have_fixed_selectors(self):
+        audit = {"route": "app", "farm_state": "active", "map_state": "open", "controls": {
+            "hunt_map": {"selector": 'button[data-modal="mapa"]',
+                         "present": True, "enabled": True, "policy": "read_only"},
+            "map_dialog": {"selector": '#modal .modal-caixa[data-modal="mapa"]',
+                           "present": True, "enabled": True, "policy": "read_only"},
+            "native_revive": {"selector": "#auto-revive", "present": True,
+                              "enabled": True, "policy": "read_only", "toggle_state": "on"},
+            "native_potion": {"selector": "#auto-potion", "present": True,
+                              "enabled": True, "policy": "read_only", "toggle_state": "off"},
+            "surrender": {"selector": "#eco-desistir", "present": True,
+                          "enabled": True, "policy": "permanently_blocked"},
+        }}
+        self.assertEqual(sanitize_automation_audit(audit), audit)
+        for corrupted in (
+            {**audit, "map_state": "traveling"},
+            {**audit, "controls": {**audit["controls"],
+             "native_potion": {**audit["controls"]["native_potion"], "toggle_state": "click"}}},
+            {**audit, "controls": {**audit["controls"],
+             "native_revive": {**audit["controls"]["native_revive"], "selector": "#random"}}},
+            {**audit, "controls": {**audit["controls"],
+             "surrender": {**audit["controls"]["surrender"], "policy": "read_only"}}},
+            {**audit, "controls": {**audit["controls"],
+             "hunt_map": {**audit["controls"]["hunt_map"], "policy": "clickable"}}},
+            {**audit, "controls": {**audit["controls"],
+             "map_dialog": {**audit["controls"]["map_dialog"], "toggle_state": "on"}}},
+            {**audit, "controls": {**audit["controls"],
+             "native_revive": {**audit["controls"]["native_revive"], "checked": True}}},
+        ):
+            with self.subTest(corrupted=corrupted), self.assertRaises(ValueError):
+                sanitize_automation_audit(corrupted)
+
+    def test_hunt_hud_hint_is_bounded_and_never_executes(self):
+        base = {"route": "app", "farm_state": "unknown",
+                "map_state": "closed", "controls": {}}
+        matching = {"status": "matching_displays", "label": "Larvitar",
+                    "level": 30, "source": "both"}
+        valid = dict(base, hunt_hint=matching)
+        self.assertEqual(sanitize_automation_audit(valid)["hunt_hint"], matching)
+        for hint in (
+            {"status": "single_display", "label": "Oddish", "level": 15, "source": "eco"},
+            {"status": "unavailable", "label": None, "level": None, "source": "none"},
+            {"status": "ambiguous", "label": None, "level": None, "source": "both"},
+        ):
+            self.assertEqual(sanitize_automation_audit(dict(base, hunt_hint=hint))["hunt_hint"], hint)
+        for broken in (
+            {**matching, "status": ["matching_displays"]},
+            {**matching, "source": {"value": "both"}},
+            {**matching, "label": "<img src=x>"},
+            {**matching, "label": "trainer@email.com"},
+            {**matching, "label": "x" * 60},
+            {**matching, "level": True},
+            {**matching, "level": "30"},
+            {**matching, "source": "hud"},
+            {**matching, "url": "http://example.invalid"},
+            {"status": "single_display", "label": "Oddish", "level": 15, "source": "both"},
+            {"status": "unavailable", "label": "Larvitar", "level": None, "source": "none"},
+        ):
+            with self.subTest(broken=broken), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, hunt_hint=broken))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app", hunt_hint=matching))
+
+    def test_real_map_count_shape_accepts_only_bounded_readonly_numbers(self):
+        base = {"route": "app", "farm_state": "active",
+                "map_state": "open", "controls": {}}
+        counts = {"status": "observed", "buttons": 24, "links": 0,
+                  "candidate_markers": 14, "rendered_regions": 8,
+                  "available_regions": 2, "rendered_markers": 14,
+                  "unlocked_markers": 8, "highlighted_markers": 1}
+        self.assertEqual(sanitize_automation_audit({
+            **base, "map_structure": counts})["map_structure"], counts)
+        for key, value in (
+            ("available_regions", 9), ("unlocked_markers", 15),
+            ("highlighted_markers", 15), ("rendered_markers", 15),
+            ("rendered_regions", -1), ("candidate_markers", 201),
+            ("unlocked_markers", True),
+        ):
+            broken = {**counts, key: value}
+            with self.subTest(field=key), self.assertRaises(ValueError):
+                sanitize_automation_audit({**base, "map_structure": broken})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_structure": {**counts, "data_slug": "bulbasaur"}})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_structure": {k: v for k, v in counts.items()
+                                           if k != "available_regions"}})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({
+                **base, "map_state": "closed", "map_structure": counts})
+
+    def test_readonly_map_structure_rejects_untrusted_fields_and_inconsistent_state(self):
+        base = {"route": "app", "farm_state": "unknown",
+                "map_state": "open", "controls": {}}
+        observed = {"status": "observed", "buttons": 8, "links": 2,
+                    "candidate_markers": 3}
+        self.assertEqual(sanitize_automation_audit(dict(base, map_structure=observed))
+                         ["map_structure"], observed)
+        missing = {"status": "body_missing", "buttons": 0, "links": 0,
+                   "candidate_markers": 0}
+        self.assertEqual(sanitize_automation_audit(dict(base, map_structure=missing))
+                         ["map_structure"], missing)
+        closed = dict(base, map_state="closed", map_structure={
+            "status": "not_open", "buttons": 0, "links": 0,
+            "candidate_markers": 0})
+        self.assertEqual(sanitize_automation_audit(closed)["map_structure"]["status"],
+                         "not_open")
+        invalid = (
+            {**observed, "buttons": 201},
+            {**observed, "links": -1},
+            {**observed, "candidate_markers": True},
+            {**observed, "buttons": "8"},
+            {**observed, "url": "https://private.invalid"},
+            {**observed, "html": "<button>"},
+            {**observed, "status": ["observed"]},
+            {**missing, "buttons": 1},
+        )
+        for item in invalid:
+            with self.subTest(item=item), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, map_structure=item))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, map_state="closed",
+                                           map_structure=observed))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, map_state="open",
+                map_structure={"status": "not_open", "buttons": 0,
+                               "links": 0, "candidate_markers": 0}))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app",
+                                           map_structure=observed))
+
+    def test_visual_scene_is_readonly_and_route_scoped(self):
+        base = {"route": "app", "farm_state": "unknown", "map_state": "closed",
+                "controls": {}}
+        for value in ("hunt_scene", "center_scene", "conflict", "unknown"):
+            with self.subTest(value=value):
+                audit = sanitize_automation_audit(dict(base, scene_indicator=value))
+                self.assertEqual(audit["scene_indicator"], value)
+                self.assertNotIn("action", audit)
+        for invalid in ("hunting", "stop_farm", True, 1, [], {"class": "hunt-ativa"}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, scene_indicator=invalid))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app",
+                                           scene_indicator="hunt_scene"))
+        self.assertEqual(sanitize_automation_audit(
+            dict(base, route="not_app", scene_indicator="unknown"))["scene_indicator"],
+            "unknown")
+        # Leitores legados continuam aceitos, mas sem a evidência opcional.
+        self.assertNotIn("scene_indicator", sanitize_automation_audit(base))
+
+    def test_automation_audit_is_closed_and_never_approves_control(self):
+        audit = {"route": "app", "farm_state": "active", "controls": {
+            "surrender": {"selector": "#eco-desistir", "present": True,
+                          "enabled": True, "policy": "permanently_blocked"},
+            "hunt_map": {"selector": None, "present": False,
+                         "enabled": False, "policy": "not_audited"},
+        }}
+        self.assertEqual(sanitize_automation_audit(audit), audit)
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({**audit, "html": "<button>"})
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit({**audit, "controls": {
+                "arbitrary": {"selector": "#anything", "present": True,
+                              "enabled": True, "policy": "read_only"}}})

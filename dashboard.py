@@ -12,7 +12,7 @@ from app.financial_ledger import FinancialLedger
 from app.lab import aggregate, load_sessions
 from app.world_pokegrid_report import analyze_file
 from app.world_capture_assistant import analyze_file as analyze_world_capture
-from app.adaptive_strategy import Account
+from app.adaptive_strategy import Account, Measurement, rank_hunts
 from app.tab_registry import Registry, create_handler, PAGE as REGISTRY_PAGE, SCRIPT as REGISTRY_SCRIPT
 
 ROOT = Path(__file__).resolve().parent
@@ -25,6 +25,7 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
           *, registry: Registry | None = None,
           accounts_path: Path | None = None,
           ivs_path: Path | None = None,
+          io_measurements_path: Path | None = None,
           open_browser: bool = False) -> None:
     if not 1 <= port <= 65535:
         raise ValueError("Porta inválida")
@@ -42,6 +43,8 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
         raise ValueError("Arquivo de contas não encontrado")
     if ivs_path is not None and not ivs_path.is_file():
         raise ValueError("Arquivo manual de IVs não encontrado")
+    if io_measurements_path is not None and not io_measurements_path.is_file():
+        raise ValueError("Medições manuais IO não encontradas")
 
     def read_accounts() -> list[Account]:
         if accounts_path is None:
@@ -55,6 +58,19 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
         if len({item.key for item in accounts}) != len(accounts):
             raise ValueError("Contas duplicadas")
         return accounts
+
+    def read_io_measurements() -> list[Measurement]:
+        if io_measurements_path is None:
+            return []
+        if io_measurements_path.stat().st_size > 1048576:
+            raise ValueError("Medições IO excedem 1 MB")
+        raw = json.loads(io_measurements_path.read_text(encoding="utf-8-sig"))
+        if not isinstance(raw, list) or len(raw) > 1000:
+            raise ValueError("Medições IO inválidas")
+        items = [Measurement.parse(item) for item in raw]
+        if any(item.game != "io" for item in items):
+            raise ValueError("Arquivo de medição IO não aceita outro jogo")
+        return items
 
     registry_handler = create_handler(registry) if registry is not None else BaseHTTPRequestHandler
 
@@ -188,6 +204,44 @@ def start(csv_path: Path, port: int, ledger_path: Path | None = None,
                 except (OSError, ValueError, KeyError) as error:
                     self.send_error(422, "Configuração World inválida: " + str(error))
                 return
+            if path == "/api/io/hunts":
+                try:
+                    args = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                    objective = args.get("objective", ["xp"])[0]
+                    if objective not in {"xp", "resources", "balanced"}:
+                        raise ValueError("Objetivo deve ser xp, resources ou balanced")
+                    if accounts_path is None or io_measurements_path is None:
+                        result = {"configured": False, "source": "user_supplied_offline",
+                                  "execution": "none",
+                                  "reason": "Cadastre data/accounts.json e data/io_hunt_measurements.json manualmente."}
+                    else:
+                        records = read_io_measurements()
+                        comparisons = []
+                        for account in read_accounts():
+                            if account.game != "io":
+                                continue
+                            ranking = rank_hunts(account, records, objective)
+                            comparisons.append({"profile_id": account.profile_id,
+                                                "account_id": account.account_id,
+                                                "pokemon_id": account.active_pokemon_id,
+                                                "ranking": ranking})
+                        result = {"configured": True, "objective": objective,
+                                  "source": "user_supplied_offline",
+                                  "identity_verified_live": False,
+                                  "execution": "none",
+                                  "comparisons": comparisons,
+                                  "note": "Medições fornecidas pelo usuário; não vinculadas automaticamente à hunt ou conta na aba Chrome."}
+                    payload = json.dumps(result, ensure_ascii=False).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (OSError, ValueError, TypeError) as error:
+                    self.send_error(422, "Comparador IO inválido: " + str(error))
+                return
             if path == "/api/finance":
                 if ledger_path is None:
                     result = {"configured": False,
@@ -252,6 +306,8 @@ def main() -> None:
                         help="JSON manual World para análise PokeGrid offline")
     parser.add_argument("--world-capture", type=Path,
                         help="JSON manual World com contas, Pokébolas e capturas")
+    parser.add_argument("--io-measurements", type=Path,
+                        help="Medições IO manuais para comparação offline de hunts")
     args = parser.parse_args()
     fields = (args.finance_game, args.finance_profile, args.finance_account)
     if any(fields) and not all(fields):
@@ -261,7 +317,8 @@ def main() -> None:
     start(args.csv.resolve(), args.port, args.ledger.resolve() if args.ledger else None,
           fields if all(fields) else None,
           args.world_report.resolve() if args.world_report else None,
-          args.world_capture.resolve() if args.world_capture else None)
+          args.world_capture.resolve() if args.world_capture else None,
+           io_measurements_path=args.io_measurements.resolve() if args.io_measurements else None)
 
 if __name__ == "__main__":
     main()

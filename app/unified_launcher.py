@@ -41,6 +41,7 @@ def available_files(root: Path = ROOT, data_dir: Path | None = None) -> dict:
     data = data_dir or resolve_data_dir(root)
     choices = {
         "accounts_path": data / "accounts.json",
+        "io_measurements_path": data / "io_hunt_measurements.json",
         "world_report_path": data / "world_snapshots.json",
         "world_capture_path": data / "world_capture.json",
         "ivs_path": data / "world_ivs.json",
@@ -104,6 +105,7 @@ def launch(*, port: int = DEFAULT_PORT, browser: bool = True, root: Path = ROOT)
             registry=registry,
             accounts_path=options["accounts_path"],
             ivs_path=options["ivs_path"],
+            io_measurements_path=options["io_measurements_path"],
             open_browser=browser,
         )
         return 0
