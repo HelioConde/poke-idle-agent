@@ -28,3 +28,36 @@ text-decoration:none;background:rgba(63,78,115,.3)}
 .monitor-link:hover,.monitor-link:focus-visible{border-color:#7ab9ff;background:rgba(72,115,183,.3)}
 .account-select{display:block;max-width:100%;min-width:min(100%,310px);padding:11px 13px;
 border:1px solid #40506f;border-radius:9px;color:#f1f5ff;background:#182540;margin-top:9px}
+
+
+/* Separação entre telemetria verdadeira, exemplos e controles auditados. */
+.live-state{display:inline-flex;align-items:center;max-width:100%;line-height:1.5;
+ border:1px solid #40506f;border-radius:10px;background:#1c2a45;
+ padding:11px 15px;font-size:13px;color:#e1e9f9;margin:0}
+.live-summary{margin-bottom:18px}
+.live-values{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}
+.live-values>div{min-width:0;border:1px solid #394764;border-radius:12px;background:#111b30;padding:16px}
+.live-values small{display:block;color:#abb9d0;font-size:12px;margin-bottom:9px}
+.live-values strong{display:block;font-size:clamp(17px,2vw,25px);letter-spacing:-.035em;
+ font-variant-numeric:tabular-nums;line-height:1.35;overflow-wrap:anywhere}
+.live-values>div:last-child strong{font-size:clamp(14px,1.5vw,19px)}
+.live-note{color:#b9c5d8;font-size:13px;line-height:1.65;margin:8px 0 0}
+.demo-details{margin:18px 0;border:1px solid #394764;border-radius:14px;padding:15px 18px;background:#111a2e}
+.demo-details>summary,.audit-details>summary{cursor:pointer;line-height:1.5;color:#dce5fb;
+ font-weight:600}
+.demo-details>summary:focus-visible,.audit-details>summary:focus-visible{
+ outline:2px solid #b7aeff;outline-offset:4px;border-radius:3px}
+.demo-details[open]>summary{margin-bottom:18px}
+.demo-details>.banner{margin:0 0 16px}
+.audit-details{border:1px solid #43516e;border-radius:10px;padding:12px 14px;
+ margin:14px 0;background:#18243b}
+.audit-details[open]>summary{margin-bottom:13px}
+.audit-control-list{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.audit-control-list .world-sample{background:#121d31;padding:12px}
+.setup-hint{padding:12px 15px;border:1px solid #34445f;border-radius:10px;
+ line-height:1.75;background:#142039;overflow-wrap:anywhere}
+.setup-hint code{white-space:normal;overflow-wrap:anywhere;color:#e5eaff}
+@media(max-width:850px){.live-values{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.live-values{grid-template-columns:1fr 1fr;gap:8px}
+.live-values>div{padding:12px}.live-values strong{font-size:16px}
+.audit-control-list{grid-template-columns:1fr}.demo-details{padding:13px}}
