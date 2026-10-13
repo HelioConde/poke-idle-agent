@@ -12,7 +12,18 @@
 <main>
 <section class="intro"><p class="eyebrow">EXPERIMENTAL / VERSÃO 0.1</p><h1>Um laboratório.<br><span>Dois mundos idle.</span></h1>
 <p class="lead">Meça progresso, compare estratégias e estude agentes de jogos. Sem promessas de renda e sem acessar suas contas.</p>
-<div id="data-banner" class="banner" role="status">Carregando dados de demonstração…</div></section>
+<p id="live-state" class="live-state" role="status">Aguardando telemetria real da extensão Chrome…</p></section>
+<section class="panel live-summary" aria-label="Resumo real de telemetria IO">
+<p class="eyebrow">POKE IDLE IO · TELEMETRIA REAL · SOMENTE LEITURA</p>
+<h2>Progresso observado no Chrome</h2>
+<div class="live-values">
+<div><small>Treinador</small><strong id="live-trainer-level">—</strong></div>
+<div><small>XP do treinador</small><strong id="live-trainer-xp">—</strong></div>
+<div><small>XP/h recente</small><strong id="live-trainer-rate">—</strong></div>
+<div><small>Janelas confiáveis</small><strong id="live-trend">Aguardando</strong></div>
+</div>
+<p id="live-note" class="live-note">Sem leitura válida da extensão. Taxas de poucos segundos não são médias estáveis.</p>
+</section>
 <section class="panel" aria-label="Visão unificada de contas e abas">
 <p class="eyebrow">CENTRAL DE CONTROLE · TUDO EM UM</p>
 <h2>Suas contas e abas no mesmo painel</h2>
@@ -43,21 +54,26 @@
 <option value="balanced">Equilibrado</option>
 </select>
 <p id="io-hunt-status" class="muted" role="status">Carregando medições IO…</p>
+<p class="muted setup-hint">Ainda não cadastrou a conta? Execute <code>\.\INICIAR-TUDO.bat --setup</code> no PowerShell dentro do projeto. Depois registre as medições em <code>data/io_hunt_measurements.json</code> na pasta privada indicada por <code>IGA_DATA_DIR</code>. Não coloque tokens, senhas ou arquivos pessoais no GitHub.</p>
 <div id="io-hunt-results" class="world-results" aria-live="polite"></div>
 <p class="muted">O ranking exige no mínimo duas hunts desbloqueadas, com pelo menos 30 minutos de medição por hunt e o mesmo Pokémon ativo. Apenas sugestões: nenhuma ação é autorizada.</p>
 </section>
-<section class="metrics" aria-label="Resumo dos jogos">
-<article class="game"><div class="game-top"><div class="game-icon">W</div><div><h2>Poke Idle World</h2><p>Modo: análise somente leitura</p></div></div>
+<details class="demo-details">
+<summary>Ver exemplos fictícios de indicadores (não são dados da sua conta)</summary>
+<div id="data-banner" class="banner" role="status">Carregando dados de demonstração…</div>
+<section class="metrics" aria-label="Indicadores fictícios de demonstração">
+<article class="game"><div class="game-top"><div class="game-icon">W</div><div><h2>Poke Idle World · Exemplo</h2><p>Dados fictícios · análise offline</p></div></div>
 <div class="values"><div><small>XP por hora</small><strong data-field="world:xp_per_hour">—</strong></div>
 <div><small>Horas analisadas</small><strong data-field="world:hours">—</strong></div>
 <div><small>US$ efetivamente sacados</small><strong data-field="world:withdrawn_usd">—</strong></div></div>
 <div class="state"><span class="point amber"></span> Sem automação de conta não autorizada</div></article>
-<article class="game"><div class="game-top"><div class="game-icon io">IO</div><div><h2>Poke Idle IO</h2><p>Modo: laboratório de automação autorizada</p></div></div>
+<article class="game"><div class="game-top"><div class="game-icon io">IO</div><div><h2>Poke Idle IO · Exemplo</h2><p>Dados fictícios · não substituem a telemetria real</p></div></div>
 <div class="values"><div><small>XP por hora</small><strong data-field="io:xp_per_hour">—</strong></div>
 <div><small>Horas analisadas</small><strong data-field="io:hours">—</strong></div>
 <div><small>US$ efetivamente sacados</small><strong data-field="io:withdrawn_usd">—</strong></div></div>
 <div class="state"><span class="point violet"></span> Bot real ainda não implementado</div></article>
 </section>
+</details>
 <section class="bottom"><article class="panel"><p class="eyebrow">O QUE JÁ EXISTE</p><h3>Componentes disponíveis</h3><ul>
 <li>Comparador de sessões e gemas líquidas</li><li>Ranking de hunts</li><li>Telemetria IO pela extensão, somente leitura</li>
 <li>Planejamento e simulação segura, sem comandos de jogo</li></ul></article>
