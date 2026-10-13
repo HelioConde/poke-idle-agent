@@ -139,6 +139,46 @@ class IoTelemetryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sanitize_automation_audit(dict(base, route="not_app", hunt_hint=matching))
 
+    def test_readonly_map_structure_rejects_untrusted_fields_and_inconsistent_state(self):
+        base = {"route": "app", "farm_state": "unknown",
+                "map_state": "open", "controls": {}}
+        observed = {"status": "observed", "buttons": 8, "links": 2,
+                    "candidate_markers": 3}
+        self.assertEqual(sanitize_automation_audit(dict(base, map_structure=observed))
+                         ["map_structure"], observed)
+        missing = {"status": "body_missing", "buttons": 0, "links": 0,
+                   "candidate_markers": 0}
+        self.assertEqual(sanitize_automation_audit(dict(base, map_structure=missing))
+                         ["map_structure"], missing)
+        closed = dict(base, map_state="closed", map_structure={
+            "status": "not_open", "buttons": 0, "links": 0,
+            "candidate_markers": 0})
+        self.assertEqual(sanitize_automation_audit(closed)["map_structure"]["status"],
+                         "not_open")
+        invalid = (
+            {**observed, "buttons": 201},
+            {**observed, "links": -1},
+            {**observed, "candidate_markers": True},
+            {**observed, "buttons": "8"},
+            {**observed, "url": "https://private.invalid"},
+            {**observed, "html": "<button>"},
+            {**observed, "status": ["observed"]},
+            {**missing, "buttons": 1},
+        )
+        for item in invalid:
+            with self.subTest(item=item), self.assertRaises(ValueError):
+                sanitize_automation_audit(dict(base, map_structure=item))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, map_state="closed",
+                                           map_structure=observed))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, map_state="open",
+                map_structure={"status": "not_open", "buttons": 0,
+                               "links": 0, "candidate_markers": 0}))
+        with self.assertRaises(ValueError):
+            sanitize_automation_audit(dict(base, route="not_app",
+                                           map_structure=observed))
+
     def test_automation_audit_is_closed_and_never_approves_control(self):
         audit = {"route": "app", "farm_state": "active", "controls": {
             "surrender": {"selector": "#eco-desistir", "present": True,
