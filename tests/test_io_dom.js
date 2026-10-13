@@ -178,7 +178,9 @@ assert.deepEqual(audit.controls.hunt_map,{selector:'button[data-modal="mapa"]',p
 console.log("IO DOM: auditoria somente leitura e Desistir bloqueado");
 
 assert.deepEqual(audit.hunt_hint,{status:"unavailable",label:null,level:null,source:"none"});
-assert.deepEqual(audit.map_structure,{status:"not_open",buttons:0,links:0,candidate_markers:0});
+assert.deepEqual(audit.map_structure,{status:"not_open",buttons:0,links:0,candidate_markers:0,
+  rendered_regions:0,available_regions:0,rendered_markers:0,
+  unlocked_markers:0,highlighted_markers:0});
 assert.equal(audit.map_state,"unknown");
 assert.equal(audit.controls.native_revive.toggle_state,"unknown");
 
