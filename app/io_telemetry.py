@@ -141,7 +141,8 @@ def sanitize_hunt_hint(value: object) -> dict:
         raise ValueError("Pista de hunt inválida")
     status, label, level, source = (
         value["status"], value["label"], value["level"], value["source"])
-    if status not in HUNT_HINT_STATUSES or source not in HUNT_HINT_SOURCES:
+    if (not isinstance(status, str) or status not in HUNT_HINT_STATUSES or
+            not isinstance(source, str) or source not in HUNT_HINT_SOURCES):
         raise ValueError("Estado de hunt inválido")
     if status == "unavailable":
         valid = source == "none" and label is None and level is None
