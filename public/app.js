@@ -318,6 +318,21 @@ async function refreshUnifiedTabs() {
           summary.textContent='Telemetria há '+String(io.age_seconds)+'s · farm: '+
             (audit.farm_state==='active'?'ativo observado':'estado desconhecido')+
             ' · nenhuma ação liberada';
+          const hint=audit.hunt_hint;
+          if(hint && ['matching_displays','single_display','ambiguous','unavailable'].includes(hint.status)){
+            const location=document.createElement('p');
+            if(hint.status==='matching_displays' || hint.status==='single_display'){
+              location.textContent='Pista da hunt no HUD: '+hint.label+
+                ' · nível exibido '+String(hint.level)+
+                (hint.status==='matching_displays'?' · dois indicadores coincidem':' · apenas um indicador')+
+                '. Não é identidade validada nem slug para navegação.';
+            }else{
+              location.textContent=hint.status==='ambiguous'
+                ? 'Pista da hunt não confirmada: indicadores do HUD divergentes.'
+                : 'Pista da hunt indisponível no HUD.';
+            }
+            section.appendChild(location);
+          }
           const controls=document.createElement('div');
           controls.className='world-results';
           for(const [name,control] of Object.entries(audit.controls||{})){
