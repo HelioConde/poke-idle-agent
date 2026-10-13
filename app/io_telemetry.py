@@ -159,6 +159,31 @@ def sanitize_hunt_hint(value: object) -> dict:
     return dict(value)
 
 
+MAP_STRUCTURE_STATUSES = frozenset({"not_open", "body_missing", "observed"})
+
+
+def sanitize_map_structure(value: object, map_state: str) -> dict:
+    """Métricas numéricas do modal, sem HTML/identificadores ou seletores livres."""
+    if not isinstance(value, dict) or set(value) != {
+            "status", "buttons", "links", "candidate_markers"}:
+        raise ValueError("Estrutura do mapa inválida")
+    status = value["status"]
+    if not isinstance(status, str) or status not in MAP_STRUCTURE_STATUSES:
+        raise ValueError("Status de estrutura do mapa inválido")
+    for key in ("buttons", "links", "candidate_markers"):
+        number = value[key]
+        if type(number) is not int or not 0 <= number <= 200:
+            raise ValueError("Contagem de elementos do mapa inválida")
+    if (status == "observed" and map_state != "open" or
+            status == "body_missing" and map_state != "open" or
+            status == "not_open" and map_state == "open"):
+        raise ValueError("Estrutura do mapa incompatível com estado")
+    if status != "observed" and any(value[key] != 0
+                                    for key in ("buttons", "links", "candidate_markers")):
+        raise ValueError("Contagem indisponível deve ser zero")
+    return dict(value)
+
+
 def sanitize_automation_audit(value: object) -> dict:
     """Lista fechada de seletores: observação DOM, nunca autorização de clique.
 
@@ -168,7 +193,7 @@ def sanitize_automation_audit(value: object) -> dict:
     """
     base = {"route", "farm_state", "controls"}
     if (not isinstance(value, dict) or not base.issubset(value) or
-            set(value) - base - {"map_state", "hunt_hint"}):
+            set(value) - base - {"map_state", "hunt_hint", "map_structure"}):
         raise ValueError("Auditoria de controles inválida")
     if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
         raise ValueError("Estado da auditoria inválido")
@@ -178,6 +203,11 @@ def sanitize_automation_audit(value: object) -> dict:
         hint = sanitize_hunt_hint(value["hunt_hint"])
         if value["route"] != "app" and hint["status"] != "unavailable":
             raise ValueError("Rota não permite pista de hunt")
+    if "map_structure" in value:
+        state = value.get("map_state", "unknown")
+        structure = sanitize_map_structure(value["map_structure"], state)
+        if value["route"] != "app" and structure["status"] != "not_open":
+            raise ValueError("Rota não permite estrutura do mapa")
     controls = value["controls"]
     if not isinstance(controls, dict) or set(controls) - AUDIT_SELECTORS.keys():
         raise ValueError("Controles auditados inválidos")
@@ -213,6 +243,9 @@ def sanitize_automation_audit(value: object) -> dict:
         result["map_state"] = value["map_state"]
     if "hunt_hint" in value:
         result["hunt_hint"] = sanitize_hunt_hint(value["hunt_hint"])
+    if "map_structure" in value:
+        result["map_structure"] = sanitize_map_structure(
+            value["map_structure"], value.get("map_state", "unknown"))
     return result
 
 
