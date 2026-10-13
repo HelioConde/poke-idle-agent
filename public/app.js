@@ -337,14 +337,23 @@ async function refreshUnifiedTabs() {
           if(structure && ['observed','body_missing','not_open'].includes(structure.status)){
             const mapInfo=document.createElement('p');
             if(structure.status==='observed'){
-              mapInfo.textContent='Estrutura do Mapa (somente contagens): '+
-                structure.buttons+' botões · '+structure.links+' links · '+
-                structure.candidate_markers+' atributos candidatos. '+
-                'Não representa hunts identificadas ou desbloqueadas.';
+              if(Number.isInteger(structure.rendered_regions) &&
+                 Number.isInteger(structure.rendered_markers)){
+                mapInfo.textContent='Mapa aberto · regiões liberadas/renderizadas: '+
+                  structure.available_regions+'/'+structure.rendered_regions+
+                  ' · marcadores desbloqueados/renderizados: '+
+                  structure.unlocked_markers+'/'+structure.rendered_markers+
+                  ' · marcadores destacados: '+structure.highlighted_markers+
+                  '. Contagens do mapa filtrado: não comprovam hunt atual ou acesso real.';
+              }else{
+                mapInfo.textContent='Estrutura do Mapa (versão anterior): '+
+                  structure.buttons+' botões · '+structure.links+' links · '+
+                  structure.candidate_markers+' atributos candidatos.';
+              }
             }else if(audit.map_state==='open'){
               mapInfo.textContent='Mapa aberto, mas o corpo do modal não foi localizado.';
             }else{
-              mapInfo.textContent='Estrutura do Mapa: aguardando abertura manual para inspecionar.';
+              mapInfo.textContent='Mapa fechado: marcadores ocultos não são contados como hunts disponíveis.';
             }
             section.appendChild(mapInfo);
           }
