@@ -123,6 +123,7 @@ NATIVE_TOGGLE_CONTROLS = frozenset({
     "native_revive", "native_potion", "native_return_hunt",
 })
 MAP_STATES = frozenset({"unknown", "open", "closed"})
+SCENE_INDICATORS = frozenset({"unknown", "hunt_scene", "center_scene", "conflict"})
 
 
 
@@ -207,12 +208,18 @@ def sanitize_automation_audit(value: object) -> dict:
     """
     base = {"route", "farm_state", "controls"}
     if (not isinstance(value, dict) or not base.issubset(value) or
-            set(value) - base - {"map_state", "hunt_hint", "map_structure"}):
+            set(value) - base - {"map_state", "hunt_hint", "map_structure", "scene_indicator"}):
         raise ValueError("Auditoria de controles inválida")
     if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
         raise ValueError("Estado da auditoria inválido")
     if "map_state" in value and value["map_state"] not in MAP_STATES:
         raise ValueError("Estado do mapa inválido")
+    if "scene_indicator" in value:
+        scene = value["scene_indicator"]
+        if not isinstance(scene, str) or scene not in SCENE_INDICATORS:
+            raise ValueError("Indicador de cena inválido")
+        if value["route"] != "app" and scene != "unknown":
+            raise ValueError("Rota não permite cena de hunt")
     if "hunt_hint" in value:
         hint = sanitize_hunt_hint(value["hunt_hint"])
         if value["route"] != "app" and hint["status"] != "unavailable":
@@ -255,6 +262,8 @@ def sanitize_automation_audit(value: object) -> dict:
               "controls": cleaned}
     if "map_state" in value:
         result["map_state"] = value["map_state"]
+    if "scene_indicator" in value:
+        result["scene_indicator"] = value["scene_indicator"]
     if "hunt_hint" in value:
         result["hunt_hint"] = sanitize_hunt_hint(value["hunt_hint"])
     if "map_structure" in value:
