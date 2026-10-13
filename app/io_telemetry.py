@@ -5,6 +5,7 @@ Nesta etapa act é DRY-RUN; nenhum comando é enviado ao jogo.
 """
 from __future__ import annotations
 import math
+import re
 
 ALLOWED = {
     "level": 10_000,
@@ -124,6 +125,40 @@ NATIVE_TOGGLE_CONTROLS = frozenset({
 MAP_STATES = frozenset({"unknown", "open", "closed"})
 
 
+
+HUNT_HINT_LABEL = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .'-]{0,47}\\Z")
+HUNT_HINT_STATUSES = frozenset({"unavailable", "ambiguous", "matching_displays", "single_display"})
+HUNT_HINT_SOURCES = frozenset({"none", "both", "hud", "eco"})
+
+
+def sanitize_hunt_hint(value: object) -> dict:
+    """Aceita somente nome/nível estritamente reduzidos do HUD público do jogo.
+
+    Não há slug, token, URL, HTML nem identidade comprovada. A presença desse
+    objeto NUNCA habilita uma ação no adaptador.
+    """
+    if not isinstance(value, dict) or set(value) != {"status", "label", "level", "source"}:
+        raise ValueError("Pista de hunt inválida")
+    status, label, level, source = (
+        value["status"], value["label"], value["level"], value["source"])
+    if status not in HUNT_HINT_STATUSES or source not in HUNT_HINT_SOURCES:
+        raise ValueError("Estado de hunt inválido")
+    if status == "unavailable":
+        valid = source == "none" and label is None and level is None
+    elif status == "ambiguous":
+        valid = source == "both" and label is None and level is None
+    else:
+        valid = (source == ("both" if status == "matching_displays" else source) and
+                 (status != "matching_displays" or source == "both") and
+                 (status != "single_display" or source in {"hud", "eco"}) and
+                 isinstance(label, str) and HUNT_HINT_LABEL.fullmatch(label) is not None and
+                 label == label.strip() and
+                 type(level) is int and 1 <= level <= 10000)
+    if not valid:
+        raise ValueError("Pista de hunt inconsistente")
+    return dict(value)
+
+
 def sanitize_automation_audit(value: object) -> dict:
     """Lista fechada de seletores: observação DOM, nunca autorização de clique.
 
@@ -133,12 +168,16 @@ def sanitize_automation_audit(value: object) -> dict:
     """
     base = {"route", "farm_state", "controls"}
     if (not isinstance(value, dict) or not base.issubset(value) or
-            set(value) - base - {"map_state"}):
+            set(value) - base - {"map_state", "hunt_hint"}):
         raise ValueError("Auditoria de controles inválida")
     if value["route"] not in {"app", "not_app"} or value["farm_state"] not in {"active", "unknown"}:
         raise ValueError("Estado da auditoria inválido")
     if "map_state" in value and value["map_state"] not in MAP_STATES:
         raise ValueError("Estado do mapa inválido")
+    if "hunt_hint" in value:
+        hint = sanitize_hunt_hint(value["hunt_hint"])
+        if value["route"] != "app" and hint["status"] != "unavailable":
+            raise ValueError("Rota não permite pista de hunt")
     controls = value["controls"]
     if not isinstance(controls, dict) or set(controls) - AUDIT_SELECTORS.keys():
         raise ValueError("Controles auditados inválidos")
@@ -172,6 +211,8 @@ def sanitize_automation_audit(value: object) -> dict:
               "controls": cleaned}
     if "map_state" in value:
         result["map_state"] = value["map_state"]
+    if "hunt_hint" in value:
+        result["hunt_hint"] = sanitize_hunt_hint(value["hunt_hint"])
     return result
 
 
