@@ -244,7 +244,13 @@
   // Somente contagens de elementos visíveis no corpo do menu Mapa;
   // não lê nomes, HTML, coordenadas, slugs nem emite qualquer clique.
   function readMapStructure(root, mapState) {
-    const empty = status => ({status, buttons:0, links:0, candidate_markers:0});
+    // Uma captura real mostrou o modal oculto mas com marcadores montados.
+    // Nunca contar DOM oculto como prova de hunts acessíveis.
+    const empty = status => ({
+      status, buttons:0, links:0, candidate_markers:0,
+      rendered_regions:0, available_regions:0, rendered_markers:0,
+      unlocked_markers:0, highlighted_markers:0
+    });
     if (mapState !== "open") return empty("not_open");
     let body = null;
     try { body = root.querySelector("#modal-corpo"); } catch (_err) {}
@@ -255,9 +261,17 @@
       try { return Math.min(200, body.querySelectorAll(selector).length); }
       catch (_err) { return 0; }
     };
-    return {status:"observed",buttons:count("button"),
+    return {status:"observed", buttons:count("button"),
       links:count("a[href]"),
-      candidate_markers:count("[data-hunt], [data-hunt-id], [data-slug]")};
+      candidate_markers:count("[data-hunt], [data-hunt-id], [data-slug]"),
+      // Todas as métricas representam somente o mapa FILTRADO no DOM.
+      // Não ler atributos data-slug, textos ou links; não acionar elementos.
+      rendered_regions:count(".mapa-areas button.mapa-area[data-regiao]"),
+      available_regions:count(".mapa-areas button.mapa-area[data-regiao]:not(.mapa-area-travada)"),
+      rendered_markers:count("#mapa-tela button.marcador[data-slug][data-travado]"),
+      unlocked_markers:count('#mapa-tela button.marcador[data-slug][data-travado="0"]'),
+      highlighted_markers:count("#mapa-tela button.marcador.on[data-slug]")
+    };
   }
 
   // Os HUDs podem indicar o Pokémon do encontro, não o mapa/hunt.
