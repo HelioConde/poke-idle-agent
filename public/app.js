@@ -293,7 +293,11 @@ async function refreshUnifiedTabs() {
       auditGrid.replaceChildren();
       const ioTabs=payload.tabs.filter(item=>item.game==='io' && item.io_audit);
       if(!ioTabs.length){
-        auditStatus.textContent='A extensão ainda não enviou uma auditoria recente dos controles IO.';
+        const readerReady=payload.tabs.some(item=>item.game==='io' &&
+          item.route==='app' && item.observation?.content_state==='responded');
+        auditStatus.textContent=readerReady
+          ? 'XP do treinador recebido, mas auditoria IO ausente. Confirme a versão da extensão no Chrome, recarregue-a e, quando for seguro para o farm, atualize a aba do jogo; depois sincronize novamente.'
+          : 'Aguardando auditoria IO da extensão ou resposta atualizada da aba do jogo.';
       }else{
         auditStatus.textContent=ioTabs.length+' aba(s) IO observada(s). Leitura apenas: nenhum controle está autorizado para execução.';
         const mapStatus={open:'Mapa aberto',closed:'Mapa fechado',
