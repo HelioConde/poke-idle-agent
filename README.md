@@ -412,3 +412,30 @@ Não copia nomes de hunts, HTML, slugs, URLs ou dados privados.
 Sem mapa aberto, não inspeciona o corpo. Essas observações continuam
 read-only e não habilitam o executor do jogo. Detalhes na
 [Auditoria de controles IO](docs/IO_CONTROLS_AUDIT.md).
+
+### Diagnóstico de auditoria IO ausente (extensão 0.2.8)
+
+A leitura `observation.content_state: responded` **não comprova** que
+`io_audit` chegou ao servidor. São duas mensagens distintas do content
+script: `IGA_READ_IO_DOM` (XP) e
+`IGA_READ_IO_AUTOMATION_AUDIT` (controles e mapa). Se a aba ainda está
+usando um script antigo, o XP pode funcionar e a auditoria não aparecer.
+
+No popup, abra **Ver diagnóstico técnico**. Os indicadores
+`last_audit_status`, `last_audit_received` e `last_audit_missing`
+mostram, respectivamente, o estado da auditoria e as quantidades de
+respostas recebidas/ausentes. A conexão pode continuar como
+`sync_confirmed` mesmo quando a auditoria está faltando.
+
+1. Confirme a versão exibida dentro do popup, não só o
+   `manifest.json` do disco. Recarregue a extensão correta, da worktree
+   `poke-idle-agent-xp/chrome_extension`, em `chrome://extensions`.
+2. Como a extensão não injeta scripts na aba já aberta ao ser recarregada,
+   atualize a aba `/app` **somente quando for seguro interromper sua
+   interface de jogo**. Nunca usar Desistir.
+3. Clique **Sincronizar agora**, verifique `/api/tabs` e o painel. Se o
+   resultado continuar vazio, veja `last_audit_status` no popup antes
+   de iniciar outro servidor ou mexer no emparelhamento.
+
+Não copie a chave de emparelhamento, HTML completo, cookies ou dados
+da conta para issues ou logs públicos.
