@@ -148,6 +148,12 @@ class IntegrationTests(unittest.TestCase):
         with urlopen(self.url("/"), timeout=2) as res:
             html = res.read().decode("utf-8")
         self.assertIn('id="tabs-grid"', html)
+        self.assertIn('id="live-trainer-xp"', html)
+        self.assertIn('id="live-trainer-rate"', html)
+        self.assertIn('id="live-trend"', html)
+        self.assertIn('<details class="demo-details">', html)
+        self.assertIn('Indicadores fictícios de demonstração', html)
+        self.assertIn('INICIAR-TUDO.bat --setup', html)
         self.assertIn('id="world-capture-results"', html)
         self.assertIn('id="world-ivs-results"', html)
         self.assertIn("Telemetria IO pela extensão, somente leitura", html)
@@ -155,6 +161,10 @@ class IntegrationTests(unittest.TestCase):
         script = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
         self.assertIn("XP treinador:", script)
         self.assertIn("origem: treinador confirmada", script)
+        self.assertIn("function updateLiveIoSummary(payload)", script)
+        self.assertIn("observation.xp_trainer_scoped===true", script)
+        self.assertIn("chosen.age_seconds<=90", script)
+        self.assertIn("details.audit-details[open]", script)
         with urlopen(self.url("/monitor"), timeout=2) as res:
             monitor = res.read().decode("utf-8")
         self.assertIn("/monitor/registry.js", monitor)
