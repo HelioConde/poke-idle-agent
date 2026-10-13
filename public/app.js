@@ -342,6 +342,9 @@ async function refreshUnifiedTabs() {
     const auditStatus=document.getElementById('io-automation-status');
     const auditGrid=document.getElementById('io-automation-grid');
     if(auditStatus && auditGrid){
+      // Preservar a expansão escolhida pelo usuário entre polls de 5 segundos.
+      const openAudits=new Set([...auditGrid.querySelectorAll('details.audit-details[open]')]
+        .map(detail=>detail.dataset.auditKey).filter(Boolean));
       auditGrid.replaceChildren();
       const ioTabs=payload.tabs.filter(item=>item.game==='io' && item.io_audit);
       if(!ioTabs.length){
@@ -422,8 +425,16 @@ async function refreshUnifiedTabs() {
             }
             section.appendChild(mapInfo);
           }
+          const details=document.createElement('details');
+          details.className='audit-details';
+          details.dataset.auditKey=String(io.profile_id||io.profile_label||'chrome')+
+            ':'+String(io.window_id)+':'+String(io.tab_id);
+          details.open=openAudits.has(details.dataset.auditKey);
+          const detailsSummary=document.createElement('summary');
+          detailsSummary.textContent='Ver controles auditados ('+
+            Object.keys(audit.controls||{}).length+') · somente leitura · Desistir bloqueado';
           const controls=document.createElement('div');
-          controls.className='world-results';
+          controls.className='world-results audit-control-list';
           for(const [name,control] of Object.entries(audit.controls||{})){
             const card=document.createElement('article');card.className='world-sample';
             const label=document.createElement('strong');
@@ -441,7 +452,8 @@ async function refreshUnifiedTabs() {
             card.append(label,detail);
             controls.appendChild(card);
           }
-          section.append(heading,summary,controls);
+          details.append(detailsSummary,controls);
+          section.append(heading,summary,details);
           const recommendations=Array.isArray(io.advisory_queue)
             ? io.advisory_queue.slice(0,3) : [];
           if(recommendations.length){
