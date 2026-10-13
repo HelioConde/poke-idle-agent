@@ -160,27 +160,41 @@ def sanitize_hunt_hint(value: object) -> dict:
 
 
 MAP_STRUCTURE_STATUSES = frozenset({"not_open", "body_missing", "observed"})
+MAP_STRUCTURE_BASE_FIELDS = frozenset({"buttons", "links", "candidate_markers"})
+MAP_STRUCTURE_DETAIL_FIELDS = frozenset({
+    "rendered_regions", "available_regions", "rendered_markers",
+    "unlocked_markers", "highlighted_markers",
+})
 
 
 def sanitize_map_structure(value: object, map_state: str) -> dict:
-    """Métricas numéricas do modal, sem HTML/identificadores ou seletores livres."""
-    if not isinstance(value, dict) or set(value) != {
-            "status", "buttons", "links", "candidate_markers"}:
+    """Contagens fechadas do mapa; jamais recebe slugs, HTML ou identificadores."""
+    if not isinstance(value, dict) or "status" not in value:
         raise ValueError("Estrutura do mapa inválida")
+    fields = set(value) - {"status"}
+    # Compatibilidade com leitores 0.2.5. Os novos campos são grupo fechado;
+    # enviar uma seleção parcial ou outros atributos deve ser rejeitado.
+    if fields not in (set(MAP_STRUCTURE_BASE_FIELDS),
+                      set(MAP_STRUCTURE_BASE_FIELDS | MAP_STRUCTURE_DETAIL_FIELDS)):
+        raise ValueError("Campos de estrutura do mapa inválidos")
     status = value["status"]
     if not isinstance(status, str) or status not in MAP_STRUCTURE_STATUSES:
         raise ValueError("Status de estrutura do mapa inválido")
-    for key in ("buttons", "links", "candidate_markers"):
+    for key in fields:
         number = value[key]
         if type(number) is not int or not 0 <= number <= 200:
             raise ValueError("Contagem de elementos do mapa inválida")
-    if (status == "observed" and map_state != "open" or
-            status == "body_missing" and map_state != "open" or
+    if (status in {"observed", "body_missing"} and map_state != "open" or
             status == "not_open" and map_state == "open"):
         raise ValueError("Estrutura do mapa incompatível com estado")
-    if status != "observed" and any(value[key] != 0
-                                    for key in ("buttons", "links", "candidate_markers")):
-        raise ValueError("Contagem indisponível deve ser zero")
+    if status != "observed" and any(value[key] != 0 for key in fields):
+        raise ValueError("Contagens indisponíveis devem ser zero")
+    if MAP_STRUCTURE_DETAIL_FIELDS.issubset(fields):
+        if (value["available_regions"] > value["rendered_regions"] or
+                value["unlocked_markers"] > value["rendered_markers"] or
+                value["highlighted_markers"] > value["rendered_markers"] or
+                value["rendered_markers"] > value["candidate_markers"]):
+            raise ValueError("Contagens do mapa inconsistentes")
     return dict(value)
 
 
