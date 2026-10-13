@@ -301,10 +301,34 @@
             source:hud && eco ? "both" : hud ? "hud" : "eco"};
   }
 
+  // Estado visual de cena, NÃO confirmação de batalha/farm no servidor.
+  // Derivado da estrutura estática vista no HTML real do Poke Idle IO.
+  // Não lê texto, nomes, id de conta, dados de hunt ou atributos privados.
+  function readSceneIndicator(root) {
+    let stage = null, cure = null;
+    try {
+      stage = root.querySelector("#palco");
+      cure = root.querySelector("#centro-curar");
+    } catch (_err) { return "unknown"; }
+    if (!stage || !stage.classList) return "unknown";
+    const has = name => stage.classList.contains(name) === true;
+    const cureVisible = !!(cure &&
+      cure.hidden !== true &&
+      cure.classList?.contains("hidden") !== true &&
+      cure.getAttribute?.("aria-hidden") !== "true" &&
+      cure.style?.display !== "none");
+    const hunt = has("hunt-ativa");
+    const center = has("centro-ativo") && cureVisible;
+    if ((hunt && center) || (has("centro-ativo") && hunt)) return "conflict";
+    if (center) return "center_scene";
+    if (hunt && !cureVisible && !has("centro-ativo")) return "hunt_scene";
+    return "unknown";
+  }
+
   function readAutomationAudit(root, path) {
     const onApp = path === "/app" || path.startsWith("/app/");
     if (!onApp) return {route:"not_app", farm_state:"unknown",
-                        map_state:"unknown", map_structure:readMapStructure(root,"unknown"),
+                        map_state:"unknown", scene_indicator:"unknown", map_structure:readMapStructure(root,"unknown"),
                         hunt_hint:{status:"unavailable",label:null,level:null,source:"none"}, controls:{}};
     let panel = null;
     try { panel = root.querySelector("#eco-painel"); } catch (_err) {}
@@ -312,7 +336,7 @@
     const farming = /\bcaçando\b/i.test(panelText) ? "active" : "unknown";
     const mapState = readMapState(root);
     return {
-      route:"app", farm_state:farming, map_state:mapState,
+      route:"app", farm_state:farming, scene_indicator:readSceneIndicator(root), map_state:mapState,
       map_structure:readMapStructure(root,mapState),
       hunt_hint:readHuntHint(root),
       controls:{
