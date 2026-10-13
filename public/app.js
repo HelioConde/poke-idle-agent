@@ -320,18 +320,33 @@ async function refreshUnifiedTabs() {
             ' · nenhuma ação liberada';
           const hint=audit.hunt_hint;
           if(hint && ['matching_displays','single_display','ambiguous','unavailable'].includes(hint.status)){
-            const location=document.createElement('p');
+            const encounter=document.createElement('p');
             if(hint.status==='matching_displays' || hint.status==='single_display'){
-              location.textContent='Pista da hunt no HUD: '+hint.label+
-                ' · nível exibido '+String(hint.level)+
+              encounter.textContent='Encontro exibido no HUD: '+hint.label+
+                ' · nível '+String(hint.level)+
                 (hint.status==='matching_displays'?' · dois indicadores coincidem':' · apenas um indicador')+
-                '. Não é identidade validada nem slug para navegação.';
+                '. Pode ser um Pokémon selvagem; NÃO identifica a hunt ou o mapa.';
             }else{
-              location.textContent=hint.status==='ambiguous'
-                ? 'Pista da hunt não confirmada: indicadores do HUD divergentes.'
-                : 'Pista da hunt indisponível no HUD.';
+              encounter.textContent=hint.status==='ambiguous'
+                ? 'Encontro não confirmado: indicadores visuais divergentes.'
+                : 'Encontro indisponível no HUD.';
             }
-            section.appendChild(location);
+            section.appendChild(encounter);
+          }
+          const structure=audit.map_structure;
+          if(structure && ['observed','body_missing','not_open'].includes(structure.status)){
+            const mapInfo=document.createElement('p');
+            if(structure.status==='observed'){
+              mapInfo.textContent='Estrutura do Mapa (somente contagens): '+
+                structure.buttons+' botões · '+structure.links+' links · '+
+                structure.candidate_markers+' atributos candidatos. '+
+                'Não representa hunts identificadas ou desbloqueadas.';
+            }else if(audit.map_state==='open'){
+              mapInfo.textContent='Mapa aberto, mas o corpo do modal não foi localizado.';
+            }else{
+              mapInfo.textContent='Estrutura do Mapa: aguardando abertura manual para inspecionar.';
+            }
+            section.appendChild(mapInfo);
           }
           const controls=document.createElement('div');
           controls.className='world-results';
