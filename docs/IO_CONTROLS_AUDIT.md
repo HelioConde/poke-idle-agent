@@ -77,3 +77,33 @@ O painel distingue explicitamente médias maduras de janelas pendentes.
 A auditoria também é exibida separadamente para todas as abas IO registradas,
 em vez de exibir apenas a primeira. O estado dos controles continua sendo
 somente leitura e não concede poder ao executor live.
+
+## Pista de hunt atual no HUD (extensão 0.2.4)
+
+Uma fixture pública do mesmo Poke Idle IO expõe `#hud-hunt` e `#eco-onde`
+com texto como `Larvitar · nível 30`. O agente usa esses seletores apenas
+para reconhecer indicadores **visuais**, sem acessar WebSocket, cookies,
+estado privado ou APIs internas do jogo.
+
+- Se dois indicadores contiverem o mesmo nome e nível, a pista terá
+  `status: matching_displays` (concordância visual, não verificação).
+- Com um só indicador íntegro, `status: single_display`.
+- Se houver duas leituras diferentes, `status: ambiguous`, sem nome ou nível.
+- Sem leitura íntegra, `status: unavailable`.
+
+O objeto fechado `hunt_hint` contém apenas
+`{status, label, level, source}`. Nomes são limitados a 48 caracteres,
+caracteres restritos e nível de 1 a 10000. Não aceita HTML, URLs,
+e-mails, textos de chat, tokens, seletores nem campos extras.
+A leitura está disponível somente na rota `/app`.
+
+**Importante:** nome visual de Pokémon/local NÃO é `hunt_id` nem
+`slug`; dois indicadores concordantes NÃO comprovam identidade da conta
+ou da hunt no servidor. O novo dado não alimenta o ranking do comparador,
+não promove controles para execução e não autoriza navegação.
+O primeiro teste com o DOM real do Chrome continua pendente.
+
+Referência: fixture `test/fixtures/center-hunt.html` do
+[Rebosteio Launcher](https://github.com/souonailo/rebosteio-launcher-pokeidleio).
+Seletores tratados como candidatos até validação real; nenhuma rotina externa
+copiada ou importada.
