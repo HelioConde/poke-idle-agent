@@ -1,4 +1,12 @@
-# Idle Game Agent
+# Idle Game Agent — Laboratório de observação e análise
+
+**Projeto experimental para observar dados de jogos idle, comparar estratégias e estudar possíveis automações com limites claros.**
+
+**Escopo atual descrito:** painel local, observação de métricas e recomendações em modo de simulação. O agente não deve ser tratado como um robô validado para controle automático.
+
+> Resultados econômicos, vendas e saques não são garantidos. Respeite as regras do jogo e evite automações não autorizadas. Leia as permissões e limitações antes de testar.
+
+---
 
 **Laboratório independente para Poke Idle World + Poke Idle IO.** Comparador de farm, painel local e protótipo de agente de jogos. Não depende do Brain-SSD.
 
